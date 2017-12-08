@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
-#tmux
+# tmux
 tmux_pkg=tmux/.tmux.conf
 tmux_sys=~/.tmux.conf
 
+# vim
+vim_pkg=vim/.vimrc
+vim_sys=~/.vimrc
 
 function usage() {
 	echo "$0 install|save"
@@ -26,11 +29,15 @@ function do_copy() {
 function do_install() {
     # tmux
     do_copy $tmux_pkg $tmux_sys
+	# vim
+    do_copy $vim_pkg $vim_sys
 }
 
 function do_save() {
     # tmux
     do_copy $tmux_sys $tmux_pkg
+	# vim
+    do_copy $vim_sys $vim_pkg
 }
 
 

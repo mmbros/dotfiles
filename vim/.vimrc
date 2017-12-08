@@ -82,7 +82,7 @@ Plug 'scrooloose/nerdtree'
 Plug 'scrooloose/nerdcommenter'
 Plug 'ctrlpvim/ctrlp.vim'
 Plug 'majutsushi/tagbar'
-Plug 'Shougo/neocomplete.vim'
+" Plug 'Shougo/neocomplete.vim'
 Plug 'jiangmiao/auto-pairs'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-fugitive'
@@ -187,6 +187,9 @@ set colorcolumn=80
 "syntax enable
 syntax on
 
+" fix vim colors in tmux
+" see: https://askubuntu.com/questions/125526/vim-in-tmux-display-wrong-colors
+set term=screen-256color
 
 " Enable 256 colors palette in Gnome Terminal
 if $COLORTERM == 'gnome-terminal'
