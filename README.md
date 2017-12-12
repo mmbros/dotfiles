@@ -34,3 +34,19 @@ I miei file di configurazione.
 7. crea un simlink a beet in una delle cartelle incluse nel path:
        sudo ln -s $HOME/code/py3venv/beets/bin/beet beet
 
+
+## git-crypt
+
+### compilazione di git-crypt
+
+1. apt install build-essential libssl-dev
+2. git clone https://github.com/AGWA/git-crypt/
+3. cd git-crypt
+4. make
+5. sudo make install PREFIX=/usr/local
+
+### utilizzo di git-crypt
+
+1. cd repository/with/encrypted/files
+2. git-crypt unlock /path/to/key
+
