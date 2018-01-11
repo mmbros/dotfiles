@@ -327,10 +327,72 @@ create_cert_chain_file ()
 	chmod 444 "$chainfile"
 }
 
+create_key ()
+{
+	log_msg "create a key"
+	local keyfile="$CA_DIR/private/$COMMON_NAME.key.pem"
+	openssl genpkey -algorithm RSA -out "$keyfile" -pkeyopt rsa_keygen_bits:2048
+	chmod 400 "$keyfile"
+}
+
+create_csr ()
+{
+	log_msg "Create a certificate signing request"
+	local config="$CA_DIR/openssl.cnf"
+	local keyfile="$CA_DIR/private/$COMMON_NAME.key.pem"
+	local csrfile="$CA_DIR/csr/$COMMON_NAME.csr.pem"
+	openssl req -config "$config" \
+		-key "$keyfile" \
+		-new -sha256 \
+		-subj "/CN=$COMMON_NAME/C=$COUNTRY" \
+		-out "$csrfile"
+}
+
+create_cert ()
+{
+	# arg1 = [server | usr]
+	log_msg "Create a certificate"
+	local cert_type="$1_cert"
+	local config="$CA_DIR/openssl.cnf"
+	local csrfile="$CA_DIR/csr/$COMMON_NAME.csr.pem"
+	local crtfile="$CA_DIR/certs/$COMMON_NAME.cert.pem"
+	openssl ca -config "$config" \
+		-extensions "$cert_type" \
+		-days 375 \
+		-notext \
+		-md sha256 \
+		-in "$csrfile" \
+		-out "$crtfile"
+	chmod 444 "$crtfile"
+}
+
+
+create_pkcs ()
+{
+	# Convert Client Key to PKCS
+	# so that it may be installed in most browsers
+	log_msg "create a pkcs certificate"
+	local keyfile="$CA_DIR/private/$COMMON_NAME.key.pem"
+	local crtfile="$CA_DIR/certs/$COMMON_NAME.cert.pem"
+	local p12file="$CA_DIR/certs/$COMMON_NAME.p12.pem"
+	openssl pkcs12 -export -clcerts -in "$crtfile" -inkey "$keyfile" -out "$p12file"
+	chmod 444 "$p12file"
+}
+
+verify_cert ()
+{
+	log_msg "verify the certificate"
+	local crtfile="$CA_DIR/certs/$COMMON_NAME.cert.pem"
+	local cafile="$CA_DIR/certs/ca-chain.cert.pem"
+	openssl x509 -noout -text -in "$crtfile"
+	openssl verify -CAfile "$cafile" "$crtfile"
+}
+
+
 
 check_and_execute()
 {
-	print_params
+	# print_params
 	check_opt_type
 
 	case "$TYPE" in
@@ -370,6 +432,11 @@ check_and_execute()
 			log_msg "Create a new Client Certificate for \"$COMMON_NAME\" with CA \"$CA_DIR\""
 			log_msg "    Common Name (CN): $COMMON_NAME"
 			check_confirm
+			create_key
+			create_csr
+			create_cert usr
+			verify_cert
+			create_pkcs
 			;;
 
 		server)
@@ -378,6 +445,10 @@ check_and_execute()
 			log_msg "Create a new Server Certificate for \"$COMMON_NAME\" with CA \"$CA_DIR\""
 			log_msg "    Common Name (CN): $COMMON_NAME"
 			check_confirm
+			create_key
+			create_csr
+			create_cert server
+			verify_cert
 			;;
 
 		*)
