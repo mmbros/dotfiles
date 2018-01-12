@@ -16,11 +16,12 @@ DIR=
 CA_DIR=
 COMMON_NAME=
 
-COUNTRY="IT"
-STATE=
-LOCALITY=
-ORGANIZATION="Company"
+BASENAME=
+ORGANIZATION="Company Inc."
 UNIT=
+COUNTRY=IT
+STATE=Italy
+LOCALITY=
 EMAIL=
 CLIENT_CERT_COMMENT="OpenSSL Generated Client Certificate"
 SERVER_CERT_COMMENT="OpenSSL Generated Server Certificate"
@@ -57,6 +58,9 @@ Main options:
 	-n, --cn, --common-name <name>
 		Common Name (CN) of the certificate.
 
+	-b, --basename <name>
+		Basename of the created files. Example: <basename>.key.pem
+
 Other options:
 
 	--organization <text>   Organization (default "$ORGANIZATION")
@@ -72,14 +76,20 @@ Examples:
 	$0 -t ca-root -d ~/ca/root
 
 	# Create Intermediate CA 1
-	$0 -t ca-intermediate -d ~/ca/ca1 -c ~/ca/root -n "Company CA 1"
+	$0 -t ca-intermediate -d ~/ca/ca1 -c ~/ca/root --common-name="Company Inc. CA 1"
+
+	# Create Server certificate
+	$0 -t server -c ~/ca/ca1 -n "*.domain.com" --basename=domain.com
+
+	# Create Client certificate
+	$0 -t client -c ~/ca/ca1 -n user --email=user@domain.com
 
 EOS
 }
 
 # getopt params
-OPTIONS=ht:d:c:n:
-LONGOPTIONS=help,type:,dir:,ca:,common-name:,cn:,organization:,country:,state:,locality:unit:,email:
+OPTIONS=ht:d:c:n:b:
+LONGOPTIONS=help,type:,dir:,ca:,common-name:,cn:,organization:,country:,state:,locality:unit:,email:,basename:
 
 # -temporarily store output to be able to check for errors
 # -e.g. use “--options” parameter by name to activate quoting/enhanced mode
@@ -114,6 +124,10 @@ while true; do
             ;;
         -n|--common-name|--cn)
             COMMON_NAME="$2"
+            shift 2
+            ;;
+        -b|--basename)
+            BASENAME="$2"
             shift 2
             ;;
         --organization)
@@ -157,6 +171,7 @@ if [[ $# -ne 0 ]]; then
 	echo "$0: Invalid argument(s) -- $@."
     exit 1
 fi
+
 
 raise_error ()
 {
@@ -227,7 +242,7 @@ get_subj ()
 	map[COUNTRY]=C;
 	map[STATE]=ST;
 	map[LOCALITY]=L;
-	map[EMAIL]=E;
+	map[EMAIL]=emailAddress;
 
 	# subj "/CN=$COMMON_NAME/C=$COUNTRY/ST=$STATE/L=$LOCALITY/O=$ORGANIZATION/OU=$UNIT"
 
@@ -238,6 +253,8 @@ get_subj ()
 		fi
 	done
 	RET=$subj
+
+	#echo "get_subj -> $subj"
 }
 
 check_opt_dir ()
@@ -259,11 +276,37 @@ check_opt_common_name ()
 	[[ -z "$COMMON_NAME" ]] && raise_error_missing_option "--common_name"
 }
 
+check_opt_basename ()
+{
+	case "$TYPE" in
+		ca-root|ca-intermediate)
+			BASENAME=ca
+			;;
+		*)
+			BASENAME=${BASENAME:-$COMMON_NAME}
+    esac
+	echo "BASENAME -> $BASENAME"
+}
+
 check_opt_type ()
 {
 	[[ -z "$TYPE" ]] && raise_error_missing_option "--type"
 }
 
+check_opt_organization ()
+{
+	[[ -z "$ORGANIZATION" ]] && raise_error_missing_option "--organization"
+}
+
+check_opt_country ()
+{
+	[[ -z "$COUNTRY" ]] && raise_error_missing_option "--country"
+}
+
+check_opt_state ()
+{
+	[[ -z "$STATE" ]] && raise_error_missing_option "--state"
+}
 
 init_root_dir ()
 {
@@ -286,26 +329,27 @@ create_root_openssl_cnf ()
 
 create_root_key ()
 {
-	log_msg "create root key"
 	local keyfile="$DIR/private/ca.key.pem"
+
+	log_msg "create root key: $keyfile"
 	openssl genpkey \
 		-algorithm RSA \
 		-aes-256-cbc \
 		-out "$keyfile" \
 		-pkeyopt rsa_keygen_bits:4096
+	check_error
 	chmod 400 "$keyfile"
 }
 
 create_root_cert ()
 {
-	log_msg "create root cert"
 	local config="$DIR/openssl.cnf"
 	local keyfile="$DIR/private/ca.key.pem"
 	local certfile="$DIR/certs/ca.cert.pem"
-
 	get_subj
-	local subj=$RET
+	local subj="$RET"
 
+	log_msg "create root cert: $certfile"
 	openssl req \
 		-config "$config" \
 		-key "$keyfile" \
@@ -348,8 +392,9 @@ init_intermediate_dir ()
 
 create_intermediate_key ()
 {
-	log_msg "create intermediate key"
 	local keyfile="$DIR/private/ca.key.pem"
+
+	log_msg "create intermediate key: $keyfile"
 	openssl genpkey \
 		-algorithm RSA \
 		-aes-256-cbc \
@@ -362,21 +407,20 @@ create_intermediate_key ()
 create_intermediate_csr ()
 {
 	# Use the intermediate key to create a certificate signing request (CSR)
-	log_msg "create intermediate csr"
 	local config="$DIR/openssl.cnf"
 	local keyfile="$DIR/private/ca.key.pem"
 	local csrfile="$DIR/csr/ca.csr.pem"
-
 	get_subj
-	local subj=$RET
+	local subj="$RET"
 
+	log_msg "create intermediate csr: $csrfile"
 	openssl req \
 		-config "$config" \
 		-new \
 		-sha256 \
-		-subj "$subj" \
 		-key "$keyfile" \
 		-out "$csrfile"
+		#-subj "$subj" \
 	check_error
 }
 
@@ -384,10 +428,11 @@ create_intermediate_cert ()
 {
 	# To create an intermediate certificate, use the root CA with the
 	# v3_intermediate_ca extension to sign the intermediate CSR
-	log_msg "create intermediate cert"
 	local config="$CA_DIR/openssl.cnf"
 	local csrfile="$DIR/csr/ca.csr.pem"
 	local certfile="$DIR/certs/ca.cert.pem"
+
+	log_msg "create intermediate cert: $certfile"
 	openssl ca \
 		-config "$config" \
 		-extensions v3_intermediate_ca \
@@ -402,9 +447,9 @@ create_intermediate_cert ()
 
 verify_intermediate_cert ()
 {
-	log_msg "verify intermediate cert"
 	local cafile="$CA_DIR/certs/ca.cert.pem"
 	local certfile="$DIR/certs/ca.cert.pem"
+
 	openssl x509 -noout -text -in "$certfile"
 	check_error
 	openssl verify -CAfile "$cafile" "$certfile"
@@ -413,20 +458,23 @@ verify_intermediate_cert ()
 
 create_cert_chain_file ()
 {
-	log_msg "create cert chain file"
 	local cafile="$CA_DIR/certs/ca.cert.pem"
 	local certfile="$DIR/certs/ca.cert.pem"
 	local chainfile="$DIR/certs/ca-chain.cert.pem"
+
+	log_msg "create cert chain file: $chainfile"
 	cat "$certfile" \
 		"$cafile" \
 		> "$chainfile"
+	check_error
 	chmod 444 "$chainfile"
 }
 
 create_key ()
 {
-	log_msg "create a key"
-	local keyfile="$CA_DIR/private/$COMMON_NAME.key.pem"
+	local keyfile="$CA_DIR/private/$BASENAME.key.pem"
+
+	log_msg "create a key: $keyfile"
 	openssl genpkey -algorithm RSA -out "$keyfile" -pkeyopt rsa_keygen_bits:2048
 	check_error
 	chmod 400 "$keyfile"
@@ -434,14 +482,17 @@ create_key ()
 
 create_csr ()
 {
-	log_msg "Create a certificate signing request"
 	local config="$CA_DIR/openssl.cnf"
-	local keyfile="$CA_DIR/private/$COMMON_NAME.key.pem"
-	local csrfile="$CA_DIR/csr/$COMMON_NAME.csr.pem"
+	local keyfile="$CA_DIR/private/$BASENAME.key.pem"
+	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
+	get_subj
+	local subj="$RET"
+
+	log_msg "Create a certificate signing request: $csrfile"
 	openssl req -config "$config" \
 		-key "$keyfile" \
 		-new -sha256 \
-		-subj "/CN=$COMMON_NAME/C=$COUNTRY" \
+		-subj "$subj" \
 		-out "$csrfile"
 	check_error
 }
@@ -449,20 +500,21 @@ create_csr ()
 create_cert ()
 {
 	# arg1 = [server | usr]
-	log_msg "Create a certificate"
 	local cert_type="$1_cert"
 	local config="$CA_DIR/openssl.cnf"
-	local csrfile="$CA_DIR/csr/$COMMON_NAME.csr.pem"
-	local crtfile="$CA_DIR/certs/$COMMON_NAME.cert.pem"
+	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
+	local certfile="$CA_DIR/certs/$BASENAME.cert.pem"
+
+	log_msg "Create a certificate: $certfile"
 	openssl ca -config "$config" \
 		-extensions "$cert_type" \
 		-days 375 \
 		-notext \
 		-md sha256 \
 		-in "$csrfile" \
-		-out "$crtfile"
+		-out "$certfile"
 	check_error
-	chmod 444 "$crtfile"
+	chmod 444 "$certfile"
 }
 
 
@@ -470,10 +522,11 @@ create_pkcs ()
 {
 	# Convert Client Key to PKCS
 	# so that it may be installed in most browsers
-	log_msg "create a pkcs certificate"
-	local keyfile="$CA_DIR/private/$COMMON_NAME.key.pem"
-	local crtfile="$CA_DIR/certs/$COMMON_NAME.cert.pem"
-	local p12file="$CA_DIR/certs/$COMMON_NAME.p12.pem"
+	local keyfile="$CA_DIR/private/$BASENAME.key.pem"
+	local crtfile="$CA_DIR/certs/$BASENAME.cert.pem"
+	local p12file="$CA_DIR/certs/$BASENAME.p12.pem"
+
+	log_msg "create a pkcs certificate: $p12file"
 	openssl pkcs12 -export -clcerts -in "$crtfile" -inkey "$keyfile" -out "$p12file"
 	check_error
 	chmod 444 "$p12file"
@@ -482,33 +535,42 @@ create_pkcs ()
 verify_cert ()
 {
 	log_msg "verify the certificate"
-	local crtfile="$CA_DIR/certs/$COMMON_NAME.cert.pem"
+	local crtfile="$CA_DIR/certs/$BASENAME.cert.pem"
 	local cafile="$CA_DIR/certs/ca-chain.cert.pem"
+
 	openssl x509 -noout -text -in "$crtfile"
 	check_error
 	openssl verify -CAfile "$cafile" "$crtfile"
 	check_error
 }
 
-
+show_distinguished_names ()
+{
+	log_msg "$1Common Name (CN) : $COMMON_NAME"
+	log_msg "$1Organization (O) : $ORGANIZATION"
+	log_msg "$1Unit (OU)        : $UNIT"
+	log_msg "$1Country (C)      : $COUNTRY"
+	log_msg "$1State (ST)       : $STATE"
+	log_msg "$1Locality (L)     : $LOCALITY"
+	log_msg "$1Email Address    : $EMAIL"
+}
 
 check_and_execute()
 {
 	# print_params
 	check_opt_type
+	check_opt_basename
 
 	case "$TYPE" in
 
         ca-root)
 			check_opt_dir
+			check_opt_organization
+			#check_opt_country
+			#check_opt_state
 			check_opt_common_name "$ORGANIZATION Root CA"
 			log_msg "Create a new Root CA for \"$COMMON_NAME\" at folder \"$DIR\""
-			log_msg "    Common Name (CN): $COMMON_NAME"
-			log_msg "    Organization (O): $ORGANIZATION"
-			log_msg "    Unit (OU)       : $UNIT"
-			log_msg "    Country (C)     : $COUNTRY"
-			log_msg "    State (ST)      : $STATE"
-			log_msg "    Locality (L)    : $LOCALITY"
+			show_distinguished_names "    "
 			check_confirm
 			init_root_dir
 			create_root_openssl_cnf
@@ -519,15 +581,13 @@ check_and_execute()
 
         ca-intermediate)
 			check_opt_dir
+			check_opt_organization
+			#check_opt_country
+			#check_opt_state
 			check_opt_common_name "$ORGANIZATION Intermediate CA ${DIR##*/}"
 			check_opt_ca
 			log_msg "Create a new Intermediate CA for \"$COMMON_NAME\" at folder \"$DIR\" with parent CA \"$CA_DIR\""
-			log_msg "    Common Name (CN): $COMMON_NAME"
-			log_msg "    Organization (O): $ORGANIZATION"
-			log_msg "    Unit (OU):        $UNIT"
-			log_msg "    Country (C):      $COUNTRY"
-			log_msg "    State (ST):       $STATE"
-			log_msg "    Locality (L):     $LOCALITY"
+			show_distinguished_names "    "
 			check_confirm
 			init_intermediate_dir
 			create_intermediate_openssl_cnf
@@ -542,6 +602,7 @@ check_and_execute()
 			check_opt_ca
 			check_opt_common_name
 			log_msg "Create a new Client Certificate for \"$COMMON_NAME\" with CA \"$CA_DIR\""
+			show_distinguished_names "    "
 			check_confirm
 			create_key
 			create_csr
@@ -554,6 +615,7 @@ check_and_execute()
 			check_opt_ca
 			check_opt_common_name
 			log_msg "Create a new Server Certificate for \"$COMMON_NAME\" with CA \"$CA_DIR\""
+			show_distinguished_names "    "
 			check_confirm
 			create_key
 			create_csr
