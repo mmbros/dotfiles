@@ -1,6 +1,8 @@
 #!/bin/bash
 
+# https://jamielinux.com/docs/openssl-certificate-authority/ 
 # https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+# https://www.devside.net/wamp-server/generating-and-installing-wildcard-and-multi-domain-ssl-certificates
 
 getopt --test > /dev/null
 if [[ $? -ne 4 ]]; then
@@ -17,6 +19,7 @@ CA_DIR=
 COMMON_NAME=
 
 BASENAME=
+PASSWORD=
 ORGANIZATION="Company Inc."
 UNIT=
 COUNTRY=IT
@@ -69,6 +72,8 @@ Other options:
 	--state <text>          State (default "$STATE")
 	--locality <text>       Locality (default "$LOCALITY")
 	--email <text>          Email (default "$EMAIL")
+	--basename <text>
+	--password <text>
 
 Examples:
 
@@ -89,7 +94,7 @@ EOS
 
 # getopt params
 OPTIONS=ht:d:c:n:b:
-LONGOPTIONS=help,type:,dir:,ca:,common-name:,cn:,organization:,country:,state:,locality:unit:,email:,basename:
+LONGOPTIONS=help,type:,dir:,ca:,common-name:,cn:,organization:,country:,state:,locality:unit:,email:,basename:,password:
 
 # -temporarily store output to be able to check for errors
 # -e.g. use “--options” parameter by name to activate quoting/enhanced mode
@@ -152,6 +157,10 @@ while true; do
             ;;
         --email)
             EMAIL="$2"
+            shift 2
+            ;;
+        --password)
+			PASSWORD="$2"
             shift 2
             ;;
         --)
@@ -330,9 +339,13 @@ create_root_openssl_cnf ()
 create_root_key ()
 {
 	local keyfile="$DIR/private/ca.key.pem"
+	local pass=""
 
 	log_msg "create root key: $keyfile"
-	openssl genpkey \
+	if [[ ! -z "$PASSWORD" ]]; then
+		pass="-pass $PASSWORD"
+	fi
+	openssl genpkey $pass \
 		-algorithm RSA \
 		-aes-256-cbc \
 		-out "$keyfile" \
@@ -348,9 +361,13 @@ create_root_cert ()
 	local certfile="$DIR/certs/ca.cert.pem"
 	get_subj
 	local subj="$RET"
+	local passin=""
 
 	log_msg "create root cert: $certfile"
-	openssl req \
+	if [[ ! -z "$PASSWORD" ]]; then
+		passin="-passin $PASSWORD"
+	fi
+	openssl req $passin \
 		-config "$config" \
 		-key "$keyfile" \
 		-new \
@@ -393,9 +410,13 @@ init_intermediate_dir ()
 create_intermediate_key ()
 {
 	local keyfile="$DIR/private/ca.key.pem"
+	local pass=""
 
 	log_msg "create intermediate key: $keyfile"
-	openssl genpkey \
+	if [[ ! -z "$PASSWORD" ]]; then
+		pass="-pass $PASSWORD"
+	fi
+	openssl genpkey $pass \
 		-algorithm RSA \
 		-aes-256-cbc \
 		-out "$keyfile" \
@@ -412,15 +433,19 @@ create_intermediate_csr ()
 	local csrfile="$DIR/csr/ca.csr.pem"
 	get_subj
 	local subj="$RET"
+	local passin=""
 
 	log_msg "create intermediate csr: $csrfile"
-	openssl req \
+	if [[ ! -z "$PASSWORD" ]]; then
+		passin="-passin $PASSWORD"
+	fi
+	openssl req $passin \
 		-config "$config" \
 		-new \
 		-sha256 \
+		-subj "$subj" \
 		-key "$keyfile" \
 		-out "$csrfile"
-		#-subj "$subj" \
 	check_error
 }
 
@@ -431,9 +456,13 @@ create_intermediate_cert ()
 	local config="$CA_DIR/openssl.cnf"
 	local csrfile="$DIR/csr/ca.csr.pem"
 	local certfile="$DIR/certs/ca.cert.pem"
+	local passin=""
 
 	log_msg "create intermediate cert: $certfile"
-	openssl ca \
+	if [[ ! -z "$PASSWORD" ]]; then
+		passin="-passin $PASSWORD"
+	fi
+	openssl ca $passin \
 		-config "$config" \
 		-extensions v3_intermediate_ca \
 		-days 3650 \
@@ -473,9 +502,13 @@ create_cert_chain_file ()
 create_key ()
 {
 	local keyfile="$CA_DIR/private/$BASENAME.key.pem"
+	local pass=""
 
 	log_msg "create a key: $keyfile"
-	openssl genpkey -algorithm RSA -out "$keyfile" -pkeyopt rsa_keygen_bits:2048
+	if [[ ! -z "$PASSWORD" ]]; then
+		pass="-pass $PASSWORD"
+	fi
+	openssl genpkey $pass -algorithm RSA -out "$keyfile" -pkeyopt rsa_keygen_bits:2048
 	check_error
 	chmod 400 "$keyfile"
 }
@@ -487,9 +520,14 @@ create_csr ()
 	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
 	get_subj
 	local subj="$RET"
+	local passin=""
 
 	log_msg "Create a certificate signing request: $csrfile"
-	openssl req -config "$config" \
+	if [[ ! -z "$PASSWORD" ]]; then
+		passin="-passin $PASSWORD"
+	fi
+	openssl req $passin \
+		-config "$config" \
 		-key "$keyfile" \
 		-new -sha256 \
 		-subj "$subj" \
@@ -504,9 +542,14 @@ create_cert ()
 	local config="$CA_DIR/openssl.cnf"
 	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
 	local certfile="$CA_DIR/certs/$BASENAME.cert.pem"
+	local passin=""
 
 	log_msg "Create a certificate: $certfile"
-	openssl ca -config "$config" \
+	if [[ ! -z "$PASSWORD" ]]; then
+		passin="-passin $PASSWORD"
+	fi
+	openssl ca $passin \
+		-config "$config" \
 		-extensions "$cert_type" \
 		-days 375 \
 		-notext \
@@ -524,10 +567,14 @@ create_pkcs ()
 	# so that it may be installed in most browsers
 	local keyfile="$CA_DIR/private/$BASENAME.key.pem"
 	local crtfile="$CA_DIR/certs/$BASENAME.cert.pem"
-	local p12file="$CA_DIR/certs/$BASENAME.p12.pem"
+	local p12file="$CA_DIR/certs/$BASENAME.p12"
+	local pass=""
 
 	log_msg "create a pkcs certificate: $p12file"
-	openssl pkcs12 -export -clcerts -in "$crtfile" -inkey "$keyfile" -out "$p12file"
+	if [[ ! -z "$PASSWORD" ]]; then
+		pass="-password $PASSWORD"
+	fi
+	openssl pkcs12 $pass -export -clcerts -in "$crtfile" -inkey "$keyfile" -out "$p12file"
 	check_error
 	chmod 444 "$p12file"
 }
