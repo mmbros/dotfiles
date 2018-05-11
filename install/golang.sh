@@ -6,6 +6,16 @@
 
 session_start "GOLANG"
 
+
+## 0. exit if go command already exists
+
+command -v go
+if [ $? -eq 0 ]; then
+  log "golang command already installed"
+  session_end "GOLANG"
+  return 0
+fi
+
 ## 1. download
 
 # downloaded file full pathname

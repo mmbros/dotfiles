@@ -26,13 +26,13 @@ error() {
 # Start session message
 # $1 - session (string)
 session_start() {
-  log "### START $1 ###"
+  log ">>> START $1 >>>"
 }
 
 # End session message
 # $1 - session (string)
 session_end() {
-  log "### END $1 ###"
+  log "<<< END $1 <<<"
 }
 
 # Check if a package is installed. Returns 0 if installed, 1 otherwise
