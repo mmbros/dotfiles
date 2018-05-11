@@ -5,7 +5,7 @@ session_start "VIM"
 
 # 1. install Vim package, if not present
 
-check_or_install_package "vim"
+check_or_install_packages "vim"
 
 # 2. install vim-plug: Vim plugin manager
 
