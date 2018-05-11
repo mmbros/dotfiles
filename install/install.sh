@@ -18,5 +18,6 @@ if [ $? -ne 0 ]; then
   error "Can't read file properties!"
 fi
 
-. vim.sh
+. git.sh
+# . vim.sh
 # . golang.sh

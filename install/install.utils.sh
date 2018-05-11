@@ -47,3 +47,19 @@ check_installed_package() {
     return 1
   fi
 }
+
+# Install a package, if not already installed
+# $1 - package name (string)
+check_or_install_package() {
+  check_installed_package "$1"
+  if [[ $? -eq 0 ]]; then
+    log "'$1' package is already installed"
+  else
+    log "install '$1' package"
+    sudo apt-get install -y -q "$1"
+    if [[ $? -ne 0 ]]; then
+      error "can't install '$1 package"
+    fi
+  fi
+}
+
