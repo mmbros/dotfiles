@@ -2,7 +2,7 @@
 
 # COMMON FOLDERS (no trailing slash, please)
 download_dir="/tmp"
-install_base_dir="$HOME/DELETE ME"
+install_base_dir="$HOME/.local"
 
 # strip trailing slash, if present
 # download_dir=${download_dir%/}
