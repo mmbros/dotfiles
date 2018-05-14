@@ -63,6 +63,13 @@ cat >> ~/.profile << EOF
 # GOLANG declarations
 export GOROOT="$install_base_dir/go"
 export GOPATH="\$HOME/Code/go"
+PATH="$GOROOT/bin:$PATH"
 EOF
 
+# 6. start vim executing vim-go's GoInstallBinaries  command non-interactively
+
+log "run GoInstallBinaries not-interactively"
+vim +'GoInstallBinaries --sync' +qa
+
 session_end "GOLANG"
+
