@@ -40,6 +40,11 @@ pip3 install neovim
 # 6. start vim executing PlugInstall command non-interactively
 #    REF: https://github.com/junegunn/vim-plug/issues/675
 
+# Error detected while processing /home/user/.vimrc:
+# line  570:
+# E117: Unknown function: deoplete#custom#source
+
+
 log "run PlugInstall not-interactively"
 vim +'PlugInstall --sync' +qa
 
