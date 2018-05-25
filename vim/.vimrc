@@ -76,7 +76,8 @@ nmap <leader>w :w!<cr>
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 call plug#begin()
-Plug 'fatih/vim-go'
+Plug 'fatih/vim-go', { 'do': ':GoUpdateBinaries' }
+" Plug 'mdempsky/gocode', { 'rtp': 'vim', 'do': '~/.vim/plugged/gocode/vim/symlink.sh' }
 Plug 'fatih/molokai'
 Plug 'scrooloose/nerdtree'
 Plug 'scrooloose/nerdcommenter'
@@ -88,6 +89,19 @@ Plug 'tpope/vim-surround'
 Plug 'tpope/vim-fugitive'
 Plug 'vim-airline/vim-airline'
 Plug 'SirVer/ultisnips'
+
+" plugin for autocomplete - requires 'pip3 install neovim'
+if has('nvim')
+	Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins'  }
+else
+	Plug 'Shougo/deoplete.nvim'
+	Plug 'roxma/nvim-yarp'
+	Plug 'roxma/vim-hug-neovim-rpc'
+endif
+
+" autocompete for go
+Plug 'zchee/deoplete-go'
+
 call plug#end()
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -97,7 +111,7 @@ call plug#end()
 set scrolloff=7
 
 " Avoid garbled characters in Chinese language windows OS
-let $LANG='en' 
+let $LANG='en'
 set langmenu=en
 source $VIMRUNTIME/delmenu.vim
 source $VIMRUNTIME/menu.vim
@@ -534,70 +548,29 @@ map <F5> :call ToggleShowTab()<cr>
 map <F2> :NERDTreeToggle<CR>
 
 
-
 "------------------------------------------------------------------------------
-" NeoComplete
+" Deoplete
 "------------------------------------------------------------------------------
 
-" Disable AutoComplPop.
-let g:acp_enableAtStartup = 0
+" deoplete options
+let g:deoplete#enable_at_startup = 1
+let g:deoplete#enable_smart_case = 1
 
-" Use neocomplete.
-let g:neocomplete#enable_at_startup = 1
+"" disable autocomplete by default
+" let b:deoplete_disable_auto_complete=1
+" let g:deoplete_disable_auto_complete=1
+" call deoplete#custom#buffer_option('auto_complete', v:false)
 
-" Use smartcase.
-let g:neocomplete#enable_smart_case = 1
-
-" Set minimum syntax keyword length.
-let g:neocomplete#sources#syntax#min_keyword_length = 3
-let g:neocomplete#lock_buffer_name_pattern = '\*ku\*'
-
-" Close popup by <Space>.
-" inoremap <expr><Space> pumvisible() ? neocomplete#close_popup() : "\<Space>"
-
-" Plugin key-mappings.
-inoremap <expr><C-g>     neocomplete#undo_completion()
-"inoremap <expr><C-l>     neocomplete#complete_common_string()
-
-" Recommended key-mappings.
-" <CR>: close popup and save indent.
-inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
-function! s:my_cr_function()
-  return pumvisible() ? neocomplete#close_popup() : "\<CR>"
-endfunction
-" <TAB>: completion.
-inoremap <expr><TAB>  pumvisible() ? "\<C-n>" : "\<TAB>"
-" <C-h>, <BS>: close popup and delete backword char.
-inoremap <expr><C-h> neocomplete#smart_close_popup()."\<C-h>"
-inoremap <expr><BS> neocomplete#smart_close_popup()."\<C-h>"
-inoremap <expr><C-y>  neocomplete#close_popup()
-inoremap <expr><C-e>  neocomplete#cancel_popup()
-" Close popup by <Space>.
-"inoremap <expr><Space> pumvisible() ? neocomplete#close_popup() : "\<Space>"
-
-" AutoComplPop like behavior.
-let g:neocomplete#enable_auto_select = 1
-
-" Enable omni completion.
-autocmd FileType css setlocal omnifunc=csscomplete#CompleteCSS
-autocmd FileType html,markdown setlocal omnifunc=htmlcomplete#CompleteTags
-autocmd FileType javascript setlocal omnifunc=javascriptcomplete#CompleteJS
-autocmd FileType python setlocal omnifunc=pythoncomplete#Complete
-autocmd FileType xml setlocal omnifunc=xmlcomplete#CompleteTags
-
-" Enable heavy omni completion.
-"if !exists('g:neocomplete#sources#omni#input_patterns')
-"  let g:neocomplete#sources#omni#input_patterns = {}
-"endif
-"let g:neocomplete#force_omni_input_patterns.go = '[^.[:digit:] *\t]\.'
-if !exists('g:neocomplete#force_omni_input_patterns')
-  let g:neocomplete#force_omni_input_patterns = {}
+if !exists('g:deoplete#omni#input_patterns')
+    let g:deoplete#omni#input_patterns = {}
 endif
-let g:neocomplete#force_omni_input_patterns.go = '[^.[:digit:] *\t]\.'
 
-"let g:neocomplete#sources#omni#input_patterns.php = '[^. \t]->\h\w*\|\h\w*::'
-"let g:neocomplete#sources#omni#input_patterns.c = '[^.[:digit:] *\t]\%(\.\|->\)'
-"let g:neocomplete#sources#omni#input_patterns.cpp = '[^.[:digit:] *\t]\%(\.\|->\)\|\h\w*::'
+" Disable the candidates in Comment/String syntaxes.
+call deoplete#custom#source('_',
+             \ 'disabled_syntaxes', ['Comment', 'String'])
+
+autocmd InsertLeave,CompleteDone * if pumvisible() == 0 | pclose | endif
+
 
 
 "------------------------------------------------------------------------------
