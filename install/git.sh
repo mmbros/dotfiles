@@ -21,14 +21,14 @@ fn=/usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret
 dir=${fn%/*}
 if [ ! -f "$fn" ]; then
   if [ -d "$dir" ]; then
-    local dirsaved=`pwd`
-	log "changing dir from $dirsaved to $dir"
+    dirsaved=`pwd`
+    log "changing dir from $dirsaved to $dir"
     cd "$dir"
     check_or_install_packages build-essential libsecret-1-0 libsecret-1-dev
     log "sudo make git-credential-libsecret"
     sudo make
-	log "restoring dir to $dirsaved"
-	cd "$dirsaved"
+    log "restoring dir to $dirsaved"
+    cd "$dirsaved"
   fi
 fi
 
