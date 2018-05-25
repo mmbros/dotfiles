@@ -15,18 +15,20 @@ git config --global user.email "$git_user_email"
 
 # 3. set git credential.help
 #    use libsecret, if possible, else store
-#    https://stackoverflow.com/questions/36585496/error-when-using-git-credential-helper-with-gnome-keyring-as-sudo/40312117#40312117 
+#    https://stackoverflow.com/questions/36585496/error-when-using-git-credential-helper-with-gnome-keyring-as-sudo/40312117#40312117
 
 fn=/usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret
 dir=${fn%/*}
 if [ ! -f "$fn" ]; then
   if [ -d "$dir" ]; then
     local dirsaved=`pwd`
+	log "changing dir from $dirsaved to $dir"
     cd "$dir"
     check_or_install_packages build-essential libsecret-1-0 libsecret-1-dev
     log "sudo make git-credential-libsecret"
     sudo make
-	cd $dirsaved
+	log "restoring dir to $dirsaved"
+	cd "$dirsaved"
   fi
 fi
 

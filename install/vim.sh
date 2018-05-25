@@ -7,6 +7,7 @@ session_start "VIM"
 
 check_or_install_packages "vim"
 
+
 # 2. install vim-plug: Vim plugin manager
 
 fn=~/.vim/autoload/plug.vim
@@ -31,7 +32,12 @@ fi
 log "download '.vimrc' to '$HOME'"
 wget -P $HOME https://raw.githubusercontent.com/mmbros/dotfiles/master/vim/.vimrc
 
-# 5. start vim executing PlugInstall command non-interactively
+# 5. install required python3 package for 'deoplete' plugin
+
+check_or_install_packages "python3-pip"
+pip3 install neovim
+
+# 6. start vim executing PlugInstall command non-interactively
 #    REF: https://github.com/junegunn/vim-plug/issues/675
 
 log "run PlugInstall not-interactively"
