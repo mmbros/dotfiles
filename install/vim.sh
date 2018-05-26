@@ -37,7 +37,13 @@ wget -P $HOME https://raw.githubusercontent.com/mmbros/dotfiles/master/vim/.vimr
 check_or_install_packages "python3-pip"
 pip3 install neovim
 
-# 6. start vim executing PlugInstall command non-interactively
+# 6. install exuberant ctags
+log "install exuberant ctags"
+
+check_or_install_packages "exuberant-ctags"
+
+
+# 7. start vim executing PlugInstall command non-interactively
 #    REF: https://github.com/junegunn/vim-plug/issues/675
 
 # Error detected while processing /home/user/.vimrc:
