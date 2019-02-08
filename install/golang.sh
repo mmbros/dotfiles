@@ -65,7 +65,11 @@ export GOROOT="$install_base_dir_string/go"
 export GOPATH="\$HOME/Code/go"
 EOF
 
-# 6. start vim executing vim-go's GoInstallBinaries  command non-interactively
+# 6. create folder and symlink to ~/Code/go/src/github.com/mmbro 
+mkdir -p ~/Code/go/src/github.com/mmbros
+ln -s ~/Code/go/src/github.com/mmbros ~/mmbros
+
+# 7. start vim executing vim-go's GoInstallBinaries  command non-interactively
 
 log "run GoInstallBinaries not-interactively"
 vim +'GoInstallBinaries --sync' +qa

@@ -6,7 +6,8 @@ I miei file di configurazione.
 cd ~/Downloads
 wget https://github.com/mmbros/dotfiles/archive/master.zip
 unzip master.zip
-dotfiles-master/install/install.sh
+cd dotfiles-master/install/
+./install.sh
 ```
 
 ## ssh
