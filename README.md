@@ -1,15 +1,13 @@
 # dotfiles
 I miei file di configurazione.
 
-'''
+## install base system
+```
 cd ~/Downloads
 wget https://github.com/mmbros/dotfiles/archive/master.zip
 unzip master.zip
-cd dotfiles-master/install
-./install.sh
-
-'''
-
+dotfiles-master/install/install.sh
+```
 
 ## ssh
 
