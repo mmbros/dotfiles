@@ -27,8 +27,8 @@ PW=--password=pass:secpw
 
 ./gen-cert.sh -t ca-root -d $d/root "$ORG"  $PW
 ./gen-cert.sh -t ca-intermediate -d $d/ca1 -c $d/root  --cn="$O $k Intermediate CA 1" "$ORG" $PW
-./gen-cert.sh -t server -c $d/ca1  --cn="$O $k Server CA 1" "$ORG" $PW
-./gen-cert.sh -t client -c $d/ca1  --cn="$O $k User CA 1" "$ORG" $PW
+# ./gen-cert.sh -t server -c $d/ca1  --cn="$O $k Server CA 1" "$ORG" $PW
+# ./gen-cert.sh -t client -c $d/ca1  --cn="$O $k User CA 1" "$ORG" $PW
 
 
 # ./gen-cert.sh -t ca-intermediate -d $d/ca2 -c $d/root  --cn="$O $k Intermediate CA 2" "$ORG" $PW

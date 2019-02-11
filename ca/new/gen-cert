@@ -329,6 +329,18 @@ get_altnames ()
 	ALT_NAMES="${str}"
 }
 
+get_altnames_config ()
+{
+	local config
+	# handle ALT_NAMES
+	get_altnames
+	if [[ ! -z "$ALT_NAMES" ]]; then
+		config="$CA_DIR/$BASENAME.openssl.cnf"
+		create_altnames_openssl_cnf "$config"
+	fi
+	RET=$config
+}
+
 check_opt_dir ()
 {
 	[[ -z "$DIR" ]] && raise_error_missing_option "--dir"
@@ -707,6 +719,7 @@ create_key ()
 }
 
 ####################################################################
+# Create 'openssl.cnf' with [ alt_names ] section
 #
 # Globals:
 #	CA_DIR, BASENAME, COMMON_NAME, ALT_NAMES
@@ -719,16 +732,27 @@ create_altnames_openssl_cnf ()
 {
 	local tmpl="openssl.altnames.tmpl"
 	local config="$1"
-	log_msg "create openssl.cnf with altnames section in $CA_DIR folder"
+	log_msg "create openssl.cnf with [ altnames ] section in $CA_DIR folder"
 
 	template_to_file "$tmpl" "$config" CA_DIR COMMON_NAME ALT_NAMES
 	check_error
 }
 
 
+####################################################################
+# Create the Client/Server Certificate Signing Request (CSR)
+# in the $CA_DIR/csr folder.
+#
+# Globals:
+#	CA_DIR, BASENAME, COMMON_NAME, ALT_NAMES
+# Arguments:
+#   config : config file (optional)
+# Returns:
+#   None
+####################################################################
 create_csr ()
 {
-	local config="$CA_DIR/openssl.cnf"
+	local config=${1:-"$CA_DIR/openssl.cnf"}
 	local keyfile="$CA_DIR/private/$BASENAME.key.pem"
 	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
 	get_subj
@@ -740,13 +764,6 @@ create_csr ()
 		passin="-passin $PASSWORD"
 	fi
 
-	# handle ALT_NAMES
-	get_altnames
-	if [[ ! -z "$ALT_NAMES" ]]; then
-		config="$CA_DIR/$BASENAME.openssl.cnf"
-		create_altnames_openssl_cnf "$config"
-	fi
-
 	openssl req $passin \
 		-config "$config" \
 		-key "$keyfile" \
@@ -756,11 +773,21 @@ create_csr ()
 	check_error
 }
 
+####################################################################
+#
+# Globals:
+#	CA_DIR, BASENAME, PASSWORD
+# Arguments:
+#   cert_type : [ "server" | "usr" ]
+#   config    : config file (optional)
+# Returns:
+#   None
+####################################################################
 create_cert ()
 {
 	# arg1 = [server | usr]
 	local cert_type="$1_cert"
-	local config="$CA_DIR/openssl.cnf"
+	local config=${2:-"$CA_DIR/openssl.cnf"}
 	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
 	local certfile="$CA_DIR/certs/$BASENAME.cert.pem"
 	local passin=""
@@ -885,9 +912,11 @@ check_and_execute()
 			log_msg "Create a new Server Certificate for \"$COMMON_NAME\" with CA \"$CA_DIR\""
 			show_distinguished_names "    "
 			check_confirm
+			get_altnames_config
+			local cnf="$RET"
 			create_key
-			create_csr
-			create_cert server
+			create_csr "$cnf"
+			create_cert server "$cnf"
 			verify_cert
 			;;
 
