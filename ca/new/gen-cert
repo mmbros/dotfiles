@@ -273,19 +273,19 @@ check_error ()
 ####################################################################
 template_to_file ()
 {
-	local TMPL=$1
-	local FILE=$2
+	local TMPL="$1"
+	local FILE="$2"
 	shift 2
-	local PARAMS=$*
+	local PARAMS="$@"
 
-	# echo "TMPL   = $TMPL"
-	# echo "FILE   = $FILE"
-	# echo "PARAMS = $PARAMS"
+	echo "TMPL   = $TMPL"
+	echo "FILE   = $FILE"
+	echo "PARAMS = $PARAMS"
 
-	cp -f $TMPL $FILE
+	cp -f "$TMPL" "$FILE"
 	for k in $PARAMS; do
 		echo "$k = ${!k}"
-		sed -i "s|{{$k}}|${!k}|g" $FILE
+		sed -i "s|{{$k}}|${!k}|g" "$FILE"
 	done
 }
 
@@ -326,7 +326,7 @@ get_altnames ()
 		val="${IP[k]}"
 		str="${str}IP.$((k+1)) = $val\n"
 	done
-	RET="${str}"
+	ALT_NAMES="${str}"
 }
 
 check_opt_dir ()
@@ -420,6 +420,7 @@ create_root_openssl_cnf ()
 	template_to_file "openssl.root.tmpl" "$DIR/openssl.cnf" \
 		DIR COUNTRY STATE LOCALITY ORGANIZATION UNIT COMMON_NAME EMAIL \
 		CLIENT_CERT_COMMENT SERVER_CERT_COMMENT
+	check_error
 }
 
 ####################################################################
@@ -541,8 +542,11 @@ init_intermediate_dir ()
 ####################################################################
 create_intermediate_openssl_cnf ()
 {
-	log_msg "create openssl.cnf"
-	template_to_file "openssl.intermediate.tmpl" "$DIR/openssl.cnf"
+	log_msg "create intermediate openssl.cnf"
+	template_to_file "openssl.intermediate.tmpl" "$DIR/openssl.cnf" \
+		DIR COUNTRY STATE LOCALITY ORGANIZATION UNIT COMMON_NAME EMAIL \
+		CLIENT_CERT_COMMENT SERVER_CERT_COMMENT
+	check_error
 }
 
 ####################################################################
@@ -702,6 +706,26 @@ create_key ()
 	chmod 400 "$keyfile"
 }
 
+####################################################################
+#
+# Globals:
+#	CA_DIR, BASENAME, COMMON_NAME, ALT_NAMES
+# Arguments:
+#   dst_file : output config file
+# Returns:
+#   None
+####################################################################
+create_altnames_openssl_cnf ()
+{
+	local tmpl="openssl.altnames.tmpl"
+	local config="$1"
+	log_msg "create openssl.cnf with altnames section in $CA_DIR folder"
+
+	template_to_file "$tmpl" "$config" CA_DIR COMMON_NAME ALT_NAMES
+	check_error
+}
+
+
 create_csr ()
 {
 	local config="$CA_DIR/openssl.cnf"
@@ -709,8 +733,6 @@ create_csr ()
 	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
 	get_subj
 	local subj="$RET"
-	get_altnames
-	local altnames="$RET"
 	local passin=""
 
 	log_msg "Create a certificate signing request: $csrfile"
@@ -718,13 +740,11 @@ create_csr ()
 		passin="-passin $PASSWORD"
 	fi
 
-	# TODO handle ALT_NAMES
-	# 1. get TMP file name with mktemp
-	# 2. save altnames.openssl.cnf in tmp file
-	 3 set config = tmpfile
-	if [[ ! -z "$altnames" ]]; then
-		log_msg "Create a custom openssl.cnf with ALT_NAMES section in the temp folder"
-		config=$(mktemp -t ".openssl.cnf.XXXXXXXXXXXX")
+	# handle ALT_NAMES
+	get_altnames
+	if [[ ! -z "$ALT_NAMES" ]]; then
+		config="$CA_DIR/$BASENAME.openssl.cnf"
+		create_altnames_openssl_cnf "$config"
 	fi
 
 	openssl req $passin \
