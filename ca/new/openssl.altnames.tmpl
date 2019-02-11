@@ -6,7 +6,7 @@ default_ca = CA_default
 
 [ CA_default ]
 # Directory and file locations.
-dir               = /home/mau/ca-AAA/ca1
+dir               = {{CA_DIR}}
 certs             = $dir/certs
 crl_dir           = $dir/crl
 new_certs_dir     = $dir/newcerts
@@ -31,8 +31,7 @@ name_opt          = ca_default
 cert_opt          = ca_default
 default_days      = 375
 preserve          = no
-# policy            = policy_loose
-policy            = policy_server_altnames
+policy            = policy_loose
 
 # https://www.devside.net/wamp-server/generating-and-installing-wildcard-and-multi-domain-ssl-certificates
 copy_extensions = copy
@@ -59,17 +58,6 @@ organizationalUnitName  = optional
 commonName              = supplied
 emailAddress            = optional
 
-[ policy_server_altnames ]
-# Allow the intermediate CA to sign a more diverse range of certificates.
-# See the POLICY FORMAT section of the `ca` man page.
-countryName             = optional
-stateOrProvinceName     = optional
-localityName            = optional
-organizationName        = optional
-organizationalUnitName  = optional
-commonName              = optional
-emailAddress            = optional
-
 [ req ]
 # Options for the `req` tool (`man req`).
 default_bits        = 2048
@@ -93,7 +81,7 @@ stateOrProvinceName             = State or Province Name
 localityName                    = Locality Name
 0.organizationName              = Organization Name
 organizationalUnitName          = Organizational Unit Name
-# commonName                      = Common Name
+commonName                      = Common Name
 # emailAddress                    = Email Address
 
 # Optionally, specify some defaults.
@@ -155,9 +143,5 @@ keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 subjectAltName = @alt_names
 
 [ alt_names ]
-DNS.1 = mananno.it
-DNS.2 = mananno.dlinkddns.com
-DNS.3 = localhost
-IP.1 = 192.168.1.2
-IP.2 = 127.0.0.1
+{{ALT_NAMES}}
 

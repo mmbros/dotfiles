@@ -7,8 +7,8 @@
 set -x
 
 # must be the same CA used in openssl.cnf
-CA_DIR="$HOME/ca-AAA/ca2"
-BASENAME=mananno2
+CA_DIR="$HOME/ca-AAA/ca1"
+BASENAME=mananno
 PASSWORD="pass:secpw"
 COMMON_NAME=mananno.it
 

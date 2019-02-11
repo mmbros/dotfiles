@@ -1,8 +1,14 @@
 #!/bin/bash
-
-# https://jamielinux.com/docs/openssl-certificate-authority/ 
-# https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
-# https://www.devside.net/wamp-server/generating-and-installing-wildcard-and-multi-domain-ssl-certificates
+#
+# Script to create Root, Intermediate, Server and Client certificates
+#
+# References:
+# - https://jamielinux.com/docs/openssl-certificate-authority/
+# - https://www.devside.net/wamp-server/generating-and-installing-wildcard-and-multi-domain-ssl-certificates
+#
+# Bash references:
+# - https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+# - https://google.github.io/styleguide/shell.xml
 
 getopt --test > /dev/null
 if [[ $? -ne 4 ]]; then
@@ -28,6 +34,9 @@ LOCALITY=
 EMAIL=
 CLIENT_CERT_COMMENT="OpenSSL Generated Client Certificate"
 SERVER_CERT_COMMENT="OpenSSL Generated Server Certificate"
+
+DNS=() # for ALT_NAMES
+IP=()  # for ALT_NAMES
 
 # internal parameters
 PROGRAM=$0
@@ -94,7 +103,7 @@ EOS
 
 # getopt params
 OPTIONS=ht:d:c:n:b:
-LONGOPTIONS=help,type:,dir:,ca:,common-name:,cn:,organization:,country:,state:,locality:unit:,email:,basename:,password:
+LONGOPTIONS="help,type:,dir:,ca:,common-name:,cn:,organization:,country:,state:,locality:unit:,email:,basename:,password:,dns:,ip:"
 
 # -temporarily store output to be able to check for errors
 # -e.g. use “--options” parameter by name to activate quoting/enhanced mode
@@ -163,6 +172,14 @@ while true; do
 			PASSWORD="$2"
             shift 2
             ;;
+		--dns)
+			DNS+=("$2")
+            shift 2
+            ;;
+		--ip)
+			IP+=("$2")
+            shift 2
+            ;;
         --)
             shift
             break
@@ -182,6 +199,7 @@ if [[ $# -ne 0 ]]; then
 fi
 
 
+
 raise_error ()
 {
 	echo "$PROGRAM: $1"
@@ -199,6 +217,8 @@ print_params ()
 	echo "DIR: $DIR"
 	echo "CA_DIR: $CA_DIR"
 	echo "COMMON_NAME: $COMMON_NAME"
+	echo "DNS: ${DNS[*]}"
+	echo "IP: ${IP[*]}"
 }
 
 log_msg ()
@@ -219,6 +239,16 @@ check_confirm ()
 	esac
 }
 
+####################################################################
+# Abort in case of errors
+#
+# Globals:
+#   None
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 check_error ()
 {
 	if [[ $? != 0 ]]; then
@@ -228,20 +258,40 @@ check_error ()
 }
 
 
+####################################################################
+# create a new file from a template
+# substituting each {{PARAM}} in template with $PARAM
+#
+# Globals:
+#   None
+# Arguments:
+#   src_template : source template file
+#   dst_file     : output file
+#   params...    : parameters
+# Returns:
+#   None
+####################################################################
 template_to_file ()
 {
 	local TMPL=$1
 	local FILE=$2
+	shift 2
+	local PARAMS=$*
+
+	# echo "TMPL   = $TMPL"
+	# echo "FILE   = $FILE"
+	# echo "PARAMS = $PARAMS"
+
 	cp -f $TMPL $FILE
-	for k in DIR COMMON_NAME COUNTRY STATE LOCALITY ORGANIZATION UNIT \
-		     EMAIL CLIENT_CERT_COMMENT SERVER_CERT_COMMENT; do
+	for k in $PARAMS; do
+		echo "$k = ${!k}"
 		sed -i "s|{{$k}}|${!k}|g" $FILE
 	done
 }
 
+
 get_subj ()
 {
-
 	local subj=""
 	local val=""
 	declare -A map
@@ -253,9 +303,7 @@ get_subj ()
 	map[LOCALITY]=L;
 	map[EMAIL]=emailAddress;
 
-	# subj "/CN=$COMMON_NAME/C=$COUNTRY/ST=$STATE/L=$LOCALITY/O=$ORGANIZATION/OU=$UNIT"
-
-	# # All of the keys in the array
+	# Loop over all the keys in the array
 	for k in ${!map[@]}; do
 		val="${!k}"
 		if [[ ! -z "$val" ]]; then
@@ -263,8 +311,22 @@ get_subj ()
 		fi
 	done
 	RET=$subj
+}
 
-	#echo "get_subj -> $subj"
+
+get_altnames ()
+{
+	local str=""
+	local val=""
+	for k in ${!DNS[@]}; do
+		val="${DNS[k]}"
+		str="${str}DNS.$((k+1)) = $val\n"
+	done
+	for k in ${!IP[@]}; do
+		val="${IP[k]}"
+		str="${str}IP.$((k+1)) = $val\n"
+	done
+	RET="${str}"
 }
 
 check_opt_dir ()
@@ -318,6 +380,16 @@ check_opt_state ()
 	[[ -z "$STATE" ]] && raise_error_missing_option "--state"
 }
 
+####################################################################
+# Initialize the Root CA directory structure
+#
+# Globals:
+#	DIR
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 init_root_dir ()
 {
 	log_msg "init Root CA dir: $DIR"
@@ -330,13 +402,36 @@ init_root_dir ()
 }
 
 
+####################################################################
+# Create the 'openssl.cnf' configuration file in the $DIR folder
+# for the Root CA
+#
+# Globals:
+#	DIR, COUNTRY, STATE, LOCALITY, ORGANIZATION, UNIT, COMMON_NAME,
+#   EMAIL, CLIENT_CERT_COMMENT, SERVER_CERT_COMMENT
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 create_root_openssl_cnf ()
 {
 	log_msg "create root openssl.cnf"
-	template_to_file "openssl.root.tmpl" "$DIR/openssl.cnf"
+	template_to_file "openssl.root.tmpl" "$DIR/openssl.cnf" \
+		DIR COUNTRY STATE LOCALITY ORGANIZATION UNIT COMMON_NAME EMAIL \
+		CLIENT_CERT_COMMENT SERVER_CERT_COMMENT
 }
 
-
+####################################################################
+# Create the Root CA key in the $DIR/private folder.
+#
+# Globals:
+#   DIR, PASSWORD
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 create_root_key ()
 {
 	local keyfile="$DIR/private/ca.key.pem"
@@ -355,6 +450,16 @@ create_root_key ()
 	chmod 400 "$keyfile"
 }
 
+####################################################################
+# Create the Root CA certificate in the $DIR/certs folder.
+#
+# Globals:
+#   DIR, PASSWORD
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 create_root_cert ()
 {
 	local config="$DIR/openssl.cnf"
@@ -382,6 +487,16 @@ create_root_cert ()
 	chmod 444 "$certfile"
 }
 
+####################################################################
+# Verify Root CA certificate
+#
+# Globals:
+#   DIR
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 verify_root_cert ()
 {
 	log_msg "verify root cert"
@@ -389,12 +504,16 @@ verify_root_cert ()
 	check_error
 }
 
-create_intermediate_openssl_cnf ()
-{
-	log_msg "create openssl.cnf"
-	template_to_file "openssl.intermediate.tmpl" "$DIR/openssl.cnf"
-}
-
+####################################################################
+# Initialize the Intermediate CA directory structure
+#
+# Globals:
+#	DIR
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 init_intermediate_dir ()
 {
 	log_msg "init intermediate dir: $DIR"
@@ -408,6 +527,34 @@ init_intermediate_dir ()
 }
 
 
+####################################################################
+# Create the 'openssl.cnf' configuration file in the $DIR folder
+# for the Intermediate CA
+#
+# Globals:
+#	DIR, COUNTRY, STATE, LOCALITY, ORGANIZATION, UNIT, COMMON_NAME,
+#   EMAIL, CLIENT_CERT_COMMENT, SERVER_CERT_COMMENT
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
+create_intermediate_openssl_cnf ()
+{
+	log_msg "create openssl.cnf"
+	template_to_file "openssl.intermediate.tmpl" "$DIR/openssl.cnf"
+}
+
+####################################################################
+# Create the Intermediate CA key in the $DIR/private folder.
+#
+# Globals:
+#   DIR, PASSWORD
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 create_intermediate_key ()
 {
 	local keyfile="$DIR/private/ca.key.pem"
@@ -426,6 +573,17 @@ create_intermediate_key ()
 	chmod 400 "$keyfile"
 }
 
+####################################################################
+# Create the Intermediate CA Certificate Signing Request (CSR)
+# in the $DIR/csr folder.
+#
+# Globals:
+#   DIR, PASSWORD
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 create_intermediate_csr ()
 {
 	# Use the intermediate key to create a certificate signing request (CSR)
@@ -450,6 +608,16 @@ create_intermediate_csr ()
 	check_error
 }
 
+####################################################################
+# Create the Intermediate CA certificate in the $DIR/certs folder.
+#
+# Globals:
+#   CA_DIR, DIR, PASSWORD
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 create_intermediate_cert ()
 {
 	# To create an intermediate certificate, use the root CA with the
@@ -475,6 +643,16 @@ create_intermediate_cert ()
 	chmod 444 "$certfile"
 }
 
+####################################################################
+# Verify Intermediate CA certificate
+#
+# Globals:
+#   CA_DIR, DIR
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 verify_intermediate_cert ()
 {
 	local cafile="$CA_DIR/certs/ca.cert.pem"
@@ -486,6 +664,16 @@ verify_intermediate_cert ()
 	check_error
 }
 
+####################################################################
+# Create the certificate chain file
+#
+# Globals:
+#   CA_DIR, DIR
+# Arguments:
+#   None
+# Returns:
+#   None
+####################################################################
 create_cert_chain_file ()
 {
 	local cafile="$CA_DIR/certs/ca.cert.pem"
@@ -521,12 +709,24 @@ create_csr ()
 	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
 	get_subj
 	local subj="$RET"
+	get_altnames
+	local altnames="$RET"
 	local passin=""
 
 	log_msg "Create a certificate signing request: $csrfile"
 	if [[ ! -z "$PASSWORD" ]]; then
 		passin="-passin $PASSWORD"
 	fi
+
+	# TODO handle ALT_NAMES
+	# 1. get TMP file name with mktemp
+	# 2. save altnames.openssl.cnf in tmp file
+	 3 set config = tmpfile
+	if [[ ! -z "$altnames" ]]; then
+		log_msg "Create a custom openssl.cnf with ALT_NAMES section in the temp folder"
+		config=$(mktemp -t ".openssl.cnf.XXXXXXXXXXXX")
+	fi
+
 	openssl req $passin \
 		-config "$config" \
 		-key "$keyfile" \
