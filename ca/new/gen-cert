@@ -83,6 +83,8 @@ Other options:
 	--email <text>          Email (default "$EMAIL")
 	--basename <text>
 	--password <text>
+	--dns <text>            DNS in [ alt_names ] section
+	--ip <text>             IP  in [ alt_names ] section
 
 Examples:
 

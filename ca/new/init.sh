@@ -43,8 +43,6 @@ PW="--password=pass:secpw"
 # 	--basename='mananno9' --cn='mananno.it' \
 # 	--dns='localhost'
 
-#
-./gen-cert -t server -c $d/ca1 "$ORG" "$PW" --cn='localhost'
 
-# ./gen-cert -t client -c $d/ca1 --basename="mananno.user.1" --cn="Mananno User 1" "$ORG" "$PW"
+./gen-cert -t client -c $d/ca1 --basename="mananno.user.5" --cn="Mananno User 5" "$ORG" "$PW"
 
