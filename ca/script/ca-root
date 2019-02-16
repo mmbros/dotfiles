@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+# Create a Root certification authority
+
+set -x
+set -e
+
+#********************************************
+# PARAMETERS
+#********************************************
+
+# Destination dir of the Root CA
+DIR="$HOME/ca mmbros/root"
+
+# Source openssl configuration file
+SRC_OPENSSL_CNF="$(pwd)/openssl.cnf"
+
+# Subject of the cert file
+SUBJ='/CN=MMbros Root CA/O=MMbros Company/OU=MMbros Certification Authority/C=IT/ST=Milan'
+
+
+#********************************************
+# CONSTANTS
+#********************************************
+
+cnffile='openssl.cnf'
+keyfile='private/ca.key.pem'
+certfile='certs/ca.cert.pem'
+
+#********************************************
+# COMMANDS
+#********************************************
+
+# delete $DIR folder
+rm -rf "${DIR}"
+
+# create and cd dir
+mkdir -p "${DIR}" && cd "$_"
+
+# init root dir
+for d in certs crl newcerts private; do
+	mkdir "$d"
+done
+chmod 700 'private'
+touch 'index.txt'
+echo 'unique_subject = no' > 'index.txt.attr'
+echo 1000 > 'serial'
+
+# copy openssl configuration file
+cp "${SRC_OPENSSL_CNF}" "${cnffile}"
+# update directory location
+sed -i "s|= \.|= ${DIR}|" "${cnffile}"
+
+# create_key
+openssl genpkey \
+	-algorithm RSA \
+	-aes-256-cbc \
+	-out "${keyfile}" \
+	-pkeyopt rsa_keygen_bits:4096
+chmod 400 "${keyfile}"
+
+# create cert
+openssl req  \
+	-config "${cnffile}" \
+	-key "${keyfile}" \
+	-new \
+	-x509 \
+	-days 7300 \
+	-sha256 \
+	-extensions v3_ca \
+	-subj "${SUBJ}" \
+	-out "${certfile}"
+chmod 444 "${certfile}"
+
+# verify root cert
+openssl x509 -noout -text -in "${certfile}"
+

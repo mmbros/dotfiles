@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+
+set -x
+set -e
+
+#********************************************
+# PARAMETERS
+#********************************************
+
+# Dir of the CA
+CA_DIR="$HOME/ca mmbros/ca1"
+
+BASENAME='server1'
+
+# Subject of the cert file
+SUBJ="/CN=example.com"
+
+
+#********************************************
+# CONSTANTS
+#********************************************
+
+cnffile='openssl.cnf'
+keyfile="private/${BASENAME}.key.pem"
+csrfile="csr/${BASENAME}.csr.pem"
+certfile="certs/${BASENAME}.cert.pem"
+cafile="certs/ca-chain.cert.pem"
+
+
+#********************************************
+# COMMANDS
+#********************************************
+
+
+# cd into CA folder
+cd "${CA_DIR}"
+
+
+# remove old files
+rm -f "${keyfile}" "${csrfile}" "${certfile}"
+
+
+# create key
+openssl genpkey \
+	-algorithm RSA \
+	-out "${keyfile}" \
+	-pkeyopt rsa_keygen_bits:2048
+chmod 400 "${keyfile}"
+
+
+# create certificate signing request (CSR)
+openssl req  \
+	-config "${cnffile}" \
+	-key "${keyfile}" \
+	-new \
+	-sha256 \
+	-subj "${SUBJ}" \
+	-out "${csrfile}"
+
+
+# create certificate
+openssl ca \
+	-config "${cnffile}" \
+	-extensions "server_cert" \
+	-days 375 \
+	-notext \
+	-md sha256 \
+	-in "${csrfile}" \
+	-out "${certfile}"
+chmod 444 "${certfile}"
+
+
+# verify cert
+openssl x509 -noout -text -in "${certfile}"
+openssl verify -CAfile "${cafile}" "${certfile}"
+

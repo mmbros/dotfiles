@@ -1,0 +1,102 @@
+#!/bin/bash
+#
+# Create a Root certification authority
+
+set -x
+set -e
+
+#********************************************
+# PARAMETERS
+#********************************************
+
+# Destination dir of the Root CA
+DIR="$HOME/ca mmbros/ca1"
+
+# Dir of the Root CA
+CA_DIR="$HOME/ca mmbros/root"
+
+# Source openssl configuration file
+SRC_OPENSSL_CNF="$(pwd)/openssl.cnf"
+
+# Subject of the cert file
+SUBJ='/CN=MMbros CA 1/O=MMbros Company/OU=MMbros Certification Authority/C=IT/ST=Milan'
+
+
+#********************************************
+# CONSTANTS
+#********************************************
+
+cnffile='openssl.cnf'
+keyfile='private/ca.key.pem'
+certfile='certs/ca.cert.pem'
+chainfile='certs/ca-chain.cert.pem'
+csrfile='csr/ca.csr.pem'
+cafile="${CA_DIR}/certs/ca.cert.pem"
+
+#********************************************
+# COMMANDS
+#********************************************
+
+# delete $DIR folder
+rm -rf "${DIR}"
+
+# create and cd $DIR
+mkdir -p "${DIR}" && cd "$_"
+
+# init dir
+for d in certs crl newcerts private csr; do
+	mkdir "$d"
+done
+chmod 700 'private'
+touch 'index.txt'
+echo 'unique_subject = no' > 'index.txt.attr'
+echo 1000 > 'serial'
+echo 1000 > 'clrnumber'
+
+# copy openssl configuration file
+cp "${SRC_OPENSSL_CNF}" "${cnffile}"
+# update directory location
+sed -i "s|= *\.|= ${DIR}|" "${cnffile}"
+# use policy_loose insted of policy_strict
+sed -i "s|= policy_strict|= policy_loose|g" "${cnffile}"
+
+# create intermediate key
+openssl genpkey \
+	-algorithm RSA \
+	-aes-256-cbc \
+	-out "${keyfile}" \
+	-pkeyopt rsa_keygen_bits:4096
+chmod 400 "${keyfile}"
+
+# Use the intermediate key to create a certificate signing request (CSR)
+openssl req  \
+	-config "${cnffile}" \
+	-key "${keyfile}" \
+	-new \
+	-sha256 \
+	-subj "${SUBJ}" \
+	-out "${csrfile}"
+
+# create intermediate cert
+# To create an intermediate certificate, use the root CA with the
+# v3_intermediate_ca extension to sign the intermediate CSR
+#cd ${CA_DIR}
+openssl ca \
+	-config "${CA_DIR}/${cnffile}" \
+	-extensions v3_intermediate_ca \
+	-days 3650 \
+	-notext \
+	-md sha256 \
+	-in "${DIR}/${csrfile}" \
+	-out "${DIR}/${certfile}"
+#cd "${DIR}"
+chmod 444 "${certfile}"
+
+# verify cert
+openssl x509 -noout -text -in "${certfile}"
+openssl verify -CAfile "${CA_DIR}/${certfile}" "${certfile}"
+
+# create cert chain file
+cat "${certfile}" "${cafile}" > "${chainfile}"
+chmod 444 "${chainfile}"
+
