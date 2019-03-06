@@ -19,7 +19,7 @@ set -e
 
 O="MMbros"
 # common directory prefix
-d="$HOME/ca-demo"
+d="$HOME/ca-demo-2"
 
 
 ORG="--organization=$O"
@@ -32,11 +32,11 @@ PW="--password=pass:secpw"
 # Intermediate CA
 ./gen-cert -t ca-intermediate -d $d/ca1 -c $d/root  --cn="$O CA 1" "$ORG" "$PW"
 
-# OK
- ./gen-cert -t server -c $d/ca1 "$ORG" "$PW" \
- 	--basename='mananno' --cn='mananno.it' \
- 	--dns='mananno.it' --dns='mananno.dlinkddns.com' --dns='localhost' \
- 	--ip 192.168.1.2 --ip 127.0.0.1
+## OK
+# ./gen-cert -t server -c $d/ca1 "$ORG" "$PW" \
+# 	--basename='mananno' --cn='mananno.it' \
+# 	--dns='mananno.it' --dns='mananno.dlinkddns.com' --dns='localhost' \
+# 	--ip 192.168.1.2 --ip 127.0.0.1
 
 # OK localhost, KO 127.0.0'1
 # ./gen-cert -t server -c $d/ca1 "$ORG" "$PW" \

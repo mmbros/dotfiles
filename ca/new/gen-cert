@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Script to create Root, Intermediate, Server and Client certificates
+# Script to create Root CA, Intermediate CA, Server and Client certificates
 #
 # References:
 # - https://jamielinux.com/docs/openssl-certificate-authority/
@@ -35,12 +35,15 @@ EMAIL=
 CLIENT_CERT_COMMENT="OpenSSL Generated Client Certificate"
 SERVER_CERT_COMMENT="OpenSSL Generated Server Certificate"
 
-DNS=() # for ALT_NAMES
-IP=()  # for ALT_NAMES
+# DNS and IP are used for subjectAltName section
+DNS=()
+IP=()
 
 # internal parameters
 PROGRAM=$0
 MSG_PREFIX=">>> "
+OPENSSL_TMPL="openssl.root.tmpl"
+
 
 # RET contains (last) function return value (when present)
 RET=
@@ -83,8 +86,8 @@ Other options:
 	--email <text>          Email (default "$EMAIL")
 	--basename <text>
 	--password <text>
-	--dns <text>            DNS in [ alt_names ] section
-	--ip <text>             IP  in [ alt_names ] section
+	--dns <text>            DNS in [ subjectAltName ] section
+	--ip <text>             IP  in [ subjectAltName ] section
 
 Examples:
 
@@ -96,6 +99,11 @@ Examples:
 
 	# Create Server certificate
 	$0 -t server -c ~/ca/ca1 -n "*.domain.com" --basename=domain.com
+
+	# Create Server certificate with SAN
+	$0 -t server -c ~/ca/ca1 -n "*.domain.com" --basename=domain.com
+	   --dns domain.com --dns www.domain.com --dns localhost
+	   --ip 127.0.0.1 --ip 192.168.1.2
 
 	# Create Client certificate
 	$0 -t client -c ~/ca/ca1 -n user --email=user@domain.com
@@ -431,7 +439,7 @@ init_root_dir ()
 create_root_openssl_cnf ()
 {
 	log_msg "create root openssl.cnf"
-	template_to_file "openssl.root.tmpl" "$DIR/openssl.cnf" \
+	template_to_file "${OPENSSL_TMPL}" "$DIR/openssl.cnf" \
 		DIR COUNTRY STATE LOCALITY ORGANIZATION UNIT COMMON_NAME EMAIL \
 		CLIENT_CERT_COMMENT SERVER_CERT_COMMENT
 	check_error
@@ -556,10 +564,23 @@ init_intermediate_dir ()
 ####################################################################
 create_intermediate_openssl_cnf ()
 {
+	local cnffile="${DIR}/openssl.cnf"
 	log_msg "create intermediate openssl.cnf"
-	template_to_file "openssl.intermediate.tmpl" "$DIR/openssl.cnf" \
+	template_to_file "${OPENSSL_TMPL}" "${cnffile}" \
 		DIR COUNTRY STATE LOCALITY ORGANIZATION UNIT COMMON_NAME EMAIL \
 		CLIENT_CERT_COMMENT SERVER_CERT_COMMENT
+	check_error
+
+	# update comment
+	sed -i "s|OpenSSL root CA|OpenSSL intermediate CA|" "${cnffile}"
+	check_error
+
+	# update directory location
+	sed -i "s|= *\.|= ${DIR}|" "${cnffile}"
+	check_error
+
+	# use 'policy_loose' instead of 'policy_strict'
+	sed -i "s|= policy_strict|= policy_loose|g" "${cnffile}"
 	check_error
 }
 
