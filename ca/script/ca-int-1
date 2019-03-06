@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Create a Root certification authority
+# Create an Intermediate certification authority
 
 set -x
 set -e
@@ -9,11 +9,11 @@ set -e
 # PARAMETERS
 #********************************************
 
-# Destination dir of the Root CA
-DIR="$HOME/ca mmbros/ca1"
+# Destination dir of the Intermediate CA
+DIR="$HOME/ca-mmbros/ca1"
 
 # Dir of the Root CA
-CA_DIR="$HOME/ca mmbros/root"
+CA_DIR="$HOME/ca-mmbros/root"
 
 # Source openssl configuration file
 SRC_OPENSSL_CNF="$(pwd)/openssl.cnf"

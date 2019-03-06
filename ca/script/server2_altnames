@@ -11,7 +11,7 @@ set -e
 #********************************************
 
 # Dir of the CA
-CA_DIR="$HOME/ca mmbros/ca1"
+CA_DIR="$HOME/ca-mmbros/ca1"
 
 BASENAME='server2'
 

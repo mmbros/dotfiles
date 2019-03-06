@@ -10,13 +10,13 @@ set -e
 #********************************************
 
 # Dir of the CA
-CA_DIR="$HOME/ca mmbros/ca1"
+CA_DIR="$HOME/ca-mmbros/ca1"
 
 BASENAME='user1'
 
 
 # Subject of the cert file
-SUBJ="/CN=user1@example.com"
+SUBJ="/CN=user1@mananno.com"
 
 
 #********************************************

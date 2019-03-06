@@ -2,7 +2,7 @@
 #
 # Create a Root certification authority
 
-set -x
+# set -x
 set -e
 
 #********************************************
@@ -10,7 +10,7 @@ set -e
 #********************************************
 
 # Destination dir of the Root CA
-DIR="$HOME/ca mmbros/root"
+DIR="$HOME/ca-mmbros/root"
 
 # Source openssl configuration file
 SRC_OPENSSL_CNF="$(pwd)/openssl.cnf"
@@ -32,12 +32,15 @@ certfile='certs/ca.cert.pem'
 #********************************************
 
 # delete $DIR folder
+echo "delete $DIR folder"
 rm -rf "${DIR}"
 
 # create and cd dir
-mkdir -p "${DIR}" && cd "$_"
+echo "create and cd ${DIR}"
+mkdir -p "${DIR}" && cd $_
 
 # init root dir
+echo "init root dir"
 for d in certs crl newcerts private; do
 	mkdir "$d"
 done
@@ -46,12 +49,15 @@ touch 'index.txt'
 echo 'unique_subject = no' > 'index.txt.attr'
 echo 1000 > 'serial'
 
+
 # copy openssl configuration file
+echo copy openssl configuration file
 cp "${SRC_OPENSSL_CNF}" "${cnffile}"
 # update directory location
 sed -i "s|= \.|= ${DIR}|" "${cnffile}"
 
 # create_key
+echo create_key
 openssl genpkey \
 	-algorithm RSA \
 	-aes-256-cbc \
@@ -59,7 +65,8 @@ openssl genpkey \
 	-pkeyopt rsa_keygen_bits:4096
 chmod 400 "${keyfile}"
 
-# create cert
+# create root cert
+echo create root cert
 openssl req  \
 	-config "${cnffile}" \
 	-key "${keyfile}" \
@@ -73,5 +80,6 @@ openssl req  \
 chmod 444 "${certfile}"
 
 # verify root cert
+echo verify root cert
 openssl x509 -noout -text -in "${certfile}"
 
