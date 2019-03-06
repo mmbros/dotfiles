@@ -42,7 +42,7 @@ IP=()
 # internal parameters
 PROGRAM=$0
 MSG_PREFIX=">>> "
-OPENSSL_TMPL="openssl.root.tmpl"
+OPENSSL_TMPL="openssl.cnf.tmpl"
 
 
 # RET contains (last) function return value (when present)
@@ -288,9 +288,9 @@ template_to_file ()
 	shift 2
 	local PARAMS="$@"
 
-	echo "TMPL   = $TMPL"
-	echo "FILE   = $FILE"
-	echo "PARAMS = $PARAMS"
+	# echo "TMPL   = $TMPL"
+	# echo "FILE   = $FILE"
+	# echo "PARAMS = $PARAMS"
 
 	cp -f "$TMPL" "$FILE"
 	for k in $PARAMS; do
@@ -414,13 +414,14 @@ check_opt_state ()
 ####################################################################
 init_root_dir ()
 {
-	log_msg "init Root CA dir: $DIR"
+	log_msg "init Root CA dir: ${DIR}"
 	for d in certs crl newcerts private; do
-		mkdir -p "$DIR/$d"
+		mkdir -p "${DIR}/$d"
 	done
-	chmod 700 "$DIR/private"
-	touch "$DIR/index.txt"
-	echo 1000 > "$DIR/serial"
+	chmod 700 "${DIR}/private"
+	touch "${DIR}/index.txt"
+	echo 'unique_subject = no' > "${DIR}/index.txt.attr"
+	echo 1000 > "${DIR}/serial"
 }
 
 

@@ -19,14 +19,14 @@ set -e
 
 O="MMbros"
 # common directory prefix
-d="$HOME/ca-demo-2"
+d="$HOME/ca-demo"
 
 
 ORG="--organization=$O"
 PW="--password=pass:secpw"
 
 # delete '$d' folder
-#rm -rf $d
+rm -rf $d
 # Root CA
 ./gen-cert -t ca-root -d $d/root "$ORG"  "$PW"
 # Intermediate CA
