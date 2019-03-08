@@ -294,7 +294,7 @@ template_to_file ()
 
 	cp -f "$TMPL" "$FILE"
 	for k in $PARAMS; do
-		echo "$k = ${!k}"
+		# echo "$k = ${!k}"
 		sed -i "s|{{$k}}|${!k}|g" "$FILE"
 	done
 }
@@ -422,6 +422,7 @@ init_root_dir ()
 	touch "${DIR}/index.txt"
 	echo 'unique_subject = no' > "${DIR}/index.txt.attr"
 	echo 1000 > "${DIR}/serial"
+	echo 1000 > "${DIR}/crlnumber"
 }
 
 
@@ -458,20 +459,20 @@ create_root_openssl_cnf ()
 ####################################################################
 create_root_key ()
 {
-	local keyfile="$DIR/private/ca.key.pem"
+	local keyfile="${DIR}/private/ca.key.pem"
 	local pass=""
 
-	log_msg "create root key: $keyfile"
-	if [[ ! -z "$PASSWORD" ]]; then
-		pass="-pass $PASSWORD"
+	log_msg "create root key: ${keyfile}"
+	if [[ ! -z "${PASSWORD}" ]]; then
+		pass="-pass ${PASSWORD}"
 	fi
-	openssl genpkey $pass \
+	openssl genpkey "$pass" \
 		-algorithm RSA \
 		-aes-256-cbc \
-		-out "$keyfile" \
+		-out "${keyfile}" \
 		-pkeyopt rsa_keygen_bits:4096
 	check_error
-	chmod 400 "$keyfile"
+	chmod 400 "${keyfile}"
 }
 
 ####################################################################
@@ -486,29 +487,29 @@ create_root_key ()
 ####################################################################
 create_root_cert ()
 {
-	local config="$DIR/openssl.cnf"
-	local keyfile="$DIR/private/ca.key.pem"
-	local certfile="$DIR/certs/ca.cert.pem"
+	local config="${DIR}/openssl.cnf"
+	local keyfile="${DIR}/private/ca.key.pem"
+	local certfile="${DIR}/certs/ca.cert.pem"
 	get_subj
-	local subj="$RET"
+	local subj="${RET}"
 	local passin=""
 
-	log_msg "create root cert: $certfile"
-	if [[ ! -z "$PASSWORD" ]]; then
-		passin="-passin $PASSWORD"
+	log_msg "create root cert: ${certfile}"
+	if [[ ! -z "${PASSWORD}" ]]; then
+		passin="-passin ${PASSWORD}"
 	fi
-	openssl req $passin \
-		-config "$config" \
-		-key "$keyfile" \
+	openssl req "${passin}" \
+		-config "${config}" \
+		-key "${keyfile}" \
 		-new \
 		-x509 \
 		-days 7300 \
 		-sha256 \
 		-extensions v3_ca \
-		-subj "$subj" \
-		-out "$certfile"
+		-subj "${subj}" \
+		-out "${certfile}"
 	check_error
-	chmod 444 "$certfile"
+	chmod 444 "${certfile}"
 }
 
 ####################################################################
@@ -524,7 +525,7 @@ create_root_cert ()
 verify_root_cert ()
 {
 	log_msg "verify root cert"
-	openssl x509 -noout -text -in "$DIR/certs/ca.cert.pem"
+	openssl x509 -noout -text -in "${DIR}/certs/ca.cert.pem"
 	check_error
 }
 
@@ -540,14 +541,14 @@ verify_root_cert ()
 ####################################################################
 init_intermediate_dir ()
 {
-	log_msg "init intermediate dir: $DIR"
+	log_msg "init intermediate dir: ${DIR}"
 	for d in certs crl csr newcerts private; do
-		mkdir -p "$DIR/$d"
+		mkdir -p "${DIR}/$d"
 	done
-	chmod 700 "$DIR/private"
-	touch "$DIR/index.txt"
-	echo 1000 > "$DIR/serial"
-	echo 1000 > "$DIR/clrnumber"
+	chmod 700 "${DIR}/private"
+	touch "${DIR}/index.txt"
+	echo 1000 > "${DIR}/serial"
+	echo 1000 > "${DIR}/crlnumber"
 }
 
 
@@ -573,15 +574,19 @@ create_intermediate_openssl_cnf ()
 	check_error
 
 	# update comment
-	sed -i "s|OpenSSL root CA|OpenSSL intermediate CA|" "${cnffile}"
+	sed -i "s/OpenSSL root CA/OpenSSL intermediate CA/" "${cnffile}"
 	check_error
 
 	# update directory location
 	sed -i "s|= *\.|= ${DIR}|" "${cnffile}"
 	check_error
 
-	# use 'policy_loose' instead of 'policy_strict'
-	sed -i "s|= policy_strict|= policy_loose|g" "${cnffile}"
+	# policy: use 'policy_loose' instead of 'policy_strict'
+	sed -i "s/\(policy\s*=\s*\)policy_strict/\1policy_loose/" "${cnffile}"
+	check_error
+
+	# x509_extensions: use 'v3_intermediate_ca' instead of 'v3_ca'
+	sed -i "s/\(x509_extensions\s*=\s*\)v3_ca/\1v3_intermediate_ca/" "${cnffile}"
 	check_error
 }
 
@@ -597,14 +602,14 @@ create_intermediate_openssl_cnf ()
 ####################################################################
 create_intermediate_key ()
 {
-	local keyfile="$DIR/private/ca.key.pem"
+	local keyfile="${DIR}/private/ca.key.pem"
 	local pass=""
 
-	log_msg "create intermediate key: $keyfile"
-	if [[ ! -z "$PASSWORD" ]]; then
-		pass="-pass $PASSWORD"
+	log_msg "create intermediate key: ${keyfile}"
+	if [[ ! -z "${PASSWORD}" ]]; then
+		pass="-pass ${PASSWORD}"
 	fi
-	openssl genpkey $pass \
+	openssl genpkey "${pass}" \
 		-algorithm RSA \
 		-aes-256-cbc \
 		-out "$keyfile" \
@@ -638,7 +643,7 @@ create_intermediate_csr ()
 	if [[ ! -z "$PASSWORD" ]]; then
 		passin="-passin $PASSWORD"
 	fi
-	openssl req $passin \
+	openssl req "$passin" \
 		-config "$config" \
 		-new \
 		-sha256 \
@@ -662,25 +667,25 @@ create_intermediate_cert ()
 {
 	# To create an intermediate certificate, use the root CA with the
 	# v3_intermediate_ca extension to sign the intermediate CSR
-	local config="$CA_DIR/openssl.cnf"
-	local csrfile="$DIR/csr/ca.csr.pem"
-	local certfile="$DIR/certs/ca.cert.pem"
+	local config="${CA_DIR}/openssl.cnf"
+	local csrfile="${DIR}/csr/ca.csr.pem"
+	local certfile="${DIR}/certs/ca.cert.pem"
 	local passin=""
 
-	log_msg "create intermediate cert: $certfile"
-	if [[ ! -z "$PASSWORD" ]]; then
-		passin="-passin $PASSWORD"
+	log_msg "create intermediate cert: ${certfile}"
+	if [[ ! -z "${PASSWORD}" ]]; then
+		passin="-passin ${PASSWORD}"
 	fi
-	openssl ca $passin \
-		-config "$config" \
+	openssl ca "${passin}" \
+		-config "${config}" \
 		-extensions v3_intermediate_ca \
 		-days 3650 \
 		-notext \
 		-md sha256 \
-		-in "$csrfile" \
-		-out "$certfile"
+		-in "${csrfile}" \
+		-out "${certfile}"
 	check_error
-	chmod 444 "$certfile"
+	chmod 444 "${certfile}"
 }
 
 ####################################################################
@@ -695,12 +700,12 @@ create_intermediate_cert ()
 ####################################################################
 verify_intermediate_cert ()
 {
-	local cafile="$CA_DIR/certs/ca.cert.pem"
-	local certfile="$DIR/certs/ca.cert.pem"
+	local cafile="${CA_DIR}/certs/ca.cert.pem"
+	local certfile="${DIR}/certs/ca.cert.pem"
 
-	openssl x509 -noout -text -in "$certfile"
+	openssl x509 -noout -text -in "${certfile}"
 	check_error
-	openssl verify -CAfile "$cafile" "$certfile"
+	openssl verify -CAfile "${cafile}" "${certfile}"
 	check_error
 }
 
@@ -716,30 +721,30 @@ verify_intermediate_cert ()
 ####################################################################
 create_cert_chain_file ()
 {
-	local cafile="$CA_DIR/certs/ca.cert.pem"
-	local certfile="$DIR/certs/ca.cert.pem"
-	local chainfile="$DIR/certs/ca-chain.cert.pem"
+	local cafile="${CA_DIR}/certs/ca.cert.pem"
+	local certfile="${DIR}/certs/ca.cert.pem"
+	local chainfile="${DIR}/certs/ca-chain.cert.pem"
 
-	log_msg "create cert chain file: $chainfile"
-	cat "$certfile" \
-		"$cafile" \
-		> "$chainfile"
+	log_msg "create cert chain file: ${chainfile}"
+	cat "${certfile}" \
+		"${cafile}" \
+		> "${chainfile}"
 	check_error
-	chmod 444 "$chainfile"
+	chmod 444 "${chainfile}"
 }
 
 create_key ()
 {
-	local keyfile="$CA_DIR/private/$BASENAME.key.pem"
+	local keyfile="${CA_DIR}/private/${BASENAME}.key.pem"
 	local pass=""
 
-	log_msg "create a key: $keyfile"
-	if [[ ! -z "$PASSWORD" ]]; then
-		pass="-pass $PASSWORD"
+	log_msg "create a key: ${keyfile}"
+	if [[ ! -z "${PASSWORD}" ]]; then
+		pass="-pass ${PASSWORD}"
 	fi
-	openssl genpkey $pass -algorithm RSA -out "$keyfile" -pkeyopt rsa_keygen_bits:2048
+	openssl genpkey ${pass} -algorithm RSA -out "${keyfile}" -pkeyopt rsa_keygen_bits:2048
 	check_error
-	chmod 400 "$keyfile"
+	chmod 400 "${keyfile}"
 }
 
 ####################################################################
@@ -752,14 +757,32 @@ create_key ()
 # Returns:
 #   None
 ####################################################################
+create_altnames_openssl_cnf_OLD ()
+{
+	local tmpl="openssl.altnames.tmpl"
+	local config="$1"
+	log_msg "create openssl.cnf with [ altnames ] section in ${CA_DIR} folder"
+
+	template_to_file "${tmpl}" "${config}" CA_DIR COMMON_NAME ALT_NAMES
+	check_error
+
+# 	-reqexts "SAN" \
+# 	-config <(cat "${cnffile}" \
+# 		    <(printf "\n[SAN]\nsubjectAltName=DNS:example.com,DNS:*.example.com,DNS:mananno.it,DNS:mananno.com")) \
+}
+
 create_altnames_openssl_cnf ()
 {
 	local tmpl="openssl.altnames.tmpl"
 	local config="$1"
-	log_msg "create openssl.cnf with [ altnames ] section in $CA_DIR folder"
+	log_msg "create openssl.cnf with [ altnames ] section in ${CA_DIR} folder"
 
-	template_to_file "$tmpl" "$config" CA_DIR COMMON_NAME ALT_NAMES
+	template_to_file "${tmpl}" "${config}" CA_DIR COMMON_NAME ALT_NAMES
 	check_error
+
+# 	-reqexts "SAN" \
+# 	-config <(cat "${cnffile}" \
+# 		    <(printf "\n[SAN]\nsubjectAltName=DNS:example.com,DNS:*.example.com,DNS:mananno.it,DNS:mananno.com")) \
 }
 
 
@@ -776,24 +799,24 @@ create_altnames_openssl_cnf ()
 ####################################################################
 create_csr ()
 {
-	local config=${1:-"$CA_DIR/openssl.cnf"}
-	local keyfile="$CA_DIR/private/$BASENAME.key.pem"
-	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
+	local config=${1:-"${CA_DIR}/openssl.cnf"}
+	local keyfile="${CA_DIR}/private/${BASENAME}.key.pem"
+	local csrfile="${CA_DIR}/csr/${BASENAME}.csr.pem"
 	get_subj
-	local subj="$RET"
+	local subj="${RET}"
 	local passin=""
 
-	log_msg "Create a certificate signing request: $csrfile"
-	if [[ ! -z "$PASSWORD" ]]; then
-		passin="-passin $PASSWORD"
+	log_msg "Create a certificate signing request: ${csrfile}"
+	if [[ ! -z "${PASSWORD}" ]]; then
+		passin="-passin ${PASSWORD}"
 	fi
 
-	openssl req $passin \
-		-config "$config" \
-		-key "$keyfile" \
+	openssl req "${passin}" \
+		-config "${config}" \
+		-key "${keyfile}" \
 		-new -sha256 \
-		-subj "$subj" \
-		-out "$csrfile"
+		-subj "${subj}" \
+		-out "${csrfile}"
 	check_error
 }
 
@@ -811,25 +834,25 @@ create_cert ()
 {
 	# arg1 = [server | usr]
 	local cert_type="$1_cert"
-	local config=${2:-"$CA_DIR/openssl.cnf"}
-	local csrfile="$CA_DIR/csr/$BASENAME.csr.pem"
-	local certfile="$CA_DIR/certs/$BASENAME.cert.pem"
+	local config=${2:-"${CA_DIR}/openssl.cnf"}
+	local csrfile="${CA_DIR}/csr/${BASENAME}.csr.pem"
+	local certfile="${CA_DIR}/certs/${BASENAME}.cert.pem"
 	local passin=""
 
-	log_msg "Create a certificate: $certfile"
-	if [[ ! -z "$PASSWORD" ]]; then
-		passin="-passin $PASSWORD"
+	log_msg "Create a certificate: ${certfile}"
+	if [[ ! -z "${PASSWORD}" ]]; then
+		passin="-passin ${PASSWORD}"
 	fi
-	openssl ca $passin \
-		-config "$config" \
-		-extensions "$cert_type" \
+	openssl ca "${passin}" \
+		-config "${config}" \
+		-extensions "${cert_type}" \
 		-days 375 \
 		-notext \
 		-md sha256 \
-		-in "$csrfile" \
-		-out "$certfile"
+		-in "${csrfile}" \
+		-out "${certfile}"
 	check_error
-	chmod 444 "$certfile"
+	chmod 444 "${certfile}"
 }
 
 
@@ -837,41 +860,41 @@ create_pkcs ()
 {
 	# Convert Client Key to PKCS
 	# so that it may be installed in most browsers
-	local keyfile="$CA_DIR/private/$BASENAME.key.pem"
-	local crtfile="$CA_DIR/certs/$BASENAME.cert.pem"
-	local p12file="$CA_DIR/certs/$BASENAME.p12"
+	local keyfile="${CA_DIR}/private/${BASENAME}.key.pem"
+	local crtfile="${CA_DIR}/certs/${BASENAME}.cert.pem"
+	local p12file="${CA_DIR}/certs/${BASENAME}.p12"
 	local pass=""
 
-	log_msg "create a pkcs certificate: $p12file"
-	if [[ ! -z "$PASSWORD" ]]; then
-		pass="-password $PASSWORD"
+	log_msg "create a pkcs certificate: ${p12file}"
+	if [[ ! -z "${PASSWORD}" ]]; then
+		pass="-password ${PASSWORD}"
 	fi
-	openssl pkcs12 $pass -export -clcerts -in "$crtfile" -inkey "$keyfile" -out "$p12file"
+	openssl pkcs12 "${pass}" -export -clcerts -in "${crtfile}" -inkey "${keyfile}" -out "${p12file}"
 	check_error
-	chmod 444 "$p12file"
+	chmod 444 "${p12file}"
 }
 
 verify_cert ()
 {
 	log_msg "verify the certificate"
-	local crtfile="$CA_DIR/certs/$BASENAME.cert.pem"
-	local cafile="$CA_DIR/certs/ca-chain.cert.pem"
+	local crtfile="${CA_DIR}/certs/${BASENAME}.cert.pem"
+	local cafile="${CA_DIR}/certs/ca-chain.cert.pem"
 
-	openssl x509 -noout -text -in "$crtfile"
+	openssl x509 -noout -text -in "${crtfile}"
 	check_error
-	openssl verify -CAfile "$cafile" "$crtfile"
+	openssl verify -CAfile "${cafile}" "${crtfile}"
 	check_error
 }
 
 show_distinguished_names ()
 {
-	log_msg "$1Common Name (CN) : $COMMON_NAME"
-	log_msg "$1Organization (O) : $ORGANIZATION"
-	log_msg "$1Unit (OU)        : $UNIT"
-	log_msg "$1Country (C)      : $COUNTRY"
-	log_msg "$1State (ST)       : $STATE"
-	log_msg "$1Locality (L)     : $LOCALITY"
-	log_msg "$1Email Address    : $EMAIL"
+	log_msg "$1Common Name (CN) : ${COMMON_NAME}"
+	log_msg "$1Organization (O) : ${ORGANIZATION}"
+	log_msg "$1Unit (OU)        : ${UNIT}"
+	log_msg "$1Country (C)      : ${COUNTRY}"
+	log_msg "$1State (ST)       : ${STATE}"
+	log_msg "$1Locality (L)     : ${LOCALITY}"
+	log_msg "$1Email Address    : ${EMAIL}"
 }
 
 check_and_execute()
@@ -880,15 +903,15 @@ check_and_execute()
 	check_opt_type
 	check_opt_basename
 
-	case "$TYPE" in
+	case "${TYPE}" in
 
         ca-root)
 			check_opt_dir
 			check_opt_organization
 			#check_opt_country
 			#check_opt_state
-			check_opt_common_name "$ORGANIZATION Root CA"
-			log_msg "Create a new Root CA for \"$COMMON_NAME\" at folder \"$DIR\""
+			check_opt_common_name "${ORGANIZATION} Root CA"
+			log_msg "Create a new Root CA for \"${COMMON_NAME}\" at folder \"${DIR}\""
 			show_distinguished_names "    "
 			check_confirm
 			init_root_dir
@@ -903,9 +926,9 @@ check_and_execute()
 			check_opt_organization
 			#check_opt_country
 			#check_opt_state
-			check_opt_common_name "$ORGANIZATION Intermediate CA ${DIR##*/}"
+			check_opt_common_name "${ORGANIZATION} Intermediate CA ${DIR##*/}"
 			check_opt_ca
-			log_msg "Create a new Intermediate CA for \"$COMMON_NAME\" at folder \"$DIR\" with parent CA \"$CA_DIR\""
+			log_msg "Create a new Intermediate CA for \"${COMMON_NAME}\" at folder \"${DIR}\" with parent CA \"${CA_DIR}\""
 			show_distinguished_names "    "
 			check_confirm
 			init_intermediate_dir
@@ -920,7 +943,7 @@ check_and_execute()
 		client)
 			check_opt_ca
 			check_opt_common_name
-			log_msg "Create a new Client Certificate for \"$COMMON_NAME\" with CA \"$CA_DIR\""
+			log_msg "Create a new Client Certificate for \"${COMMON_NAME}\" with CA \"${CA_DIR}\""
 			show_distinguished_names "    "
 			check_confirm
 			create_key
@@ -933,19 +956,19 @@ check_and_execute()
 		server)
 			check_opt_ca
 			check_opt_common_name
-			log_msg "Create a new Server Certificate for \"$COMMON_NAME\" with CA \"$CA_DIR\""
+			log_msg "Create a new Server Certificate for \"${COMMON_NAME}\" with CA \"${CA_DIR}\""
 			show_distinguished_names "    "
 			check_confirm
 			get_altnames_config
-			local cnf="$RET"
+			local cnf="${RET}"
 			create_key
-			create_csr "$cnf"
-			create_cert server "$cnf"
+			create_csr "${cnf}"
+			create_cert server "${cnf}"
 			verify_cert
 			;;
 
 		*)
-			raise_error "invalid value -- type=$TYPE"
+			raise_error "invalid value -- type=${TYPE}"
 			;;
 	esac
 }
