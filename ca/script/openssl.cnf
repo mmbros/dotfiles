@@ -1,4 +1,4 @@
-# OpenSSL root CA configuration file.
+# OpenSSL CA configuration file.
 # Credits: https://jamielinux.com/docs/openssl-certificate-authority/index.html
 
 [ ca ]
@@ -131,3 +131,12 @@ subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer
 keyUsage = critical, digitalSignature
 extendedKeyUsage = critical, OCSPSigning
+
+[ v3_req ]
+# Extensions to add to a certificate request
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+SAN = changeme
+# the above vaule is used if SAN isn't in the environment
+subjectAltName = ${ENV::SAN}
+

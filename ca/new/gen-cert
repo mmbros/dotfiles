@@ -16,7 +16,7 @@ if [[ $? -ne 4 ]]; then
     exit 1
 fi
 
-# set -x
+#set -x
 
 # options parameters
 TYPE=
@@ -379,27 +379,27 @@ check_opt_basename ()
 		*)
 			BASENAME=${BASENAME:-$COMMON_NAME}
     esac
-	echo "BASENAME -> $BASENAME"
+	echo "BASENAME -> ${BASENAME}"
 }
 
 check_opt_type ()
 {
-	[[ -z "$TYPE" ]] && raise_error_missing_option "--type"
+	[[ -z "${TYPE}" ]] && raise_error_missing_option "--type"
 }
 
 check_opt_organization ()
 {
-	[[ -z "$ORGANIZATION" ]] && raise_error_missing_option "--organization"
+	[[ -z "${ORGANIZATION}" ]] && raise_error_missing_option "--organization"
 }
 
 check_opt_country ()
 {
-	[[ -z "$COUNTRY" ]] && raise_error_missing_option "--country"
+	[[ -z "${COUNTRY}" ]] && raise_error_missing_option "--country"
 }
 
 check_opt_state ()
 {
-	[[ -z "$STATE" ]] && raise_error_missing_option "--state"
+	[[ -z "${STATE}" ]] && raise_error_missing_option "--state"
 }
 
 ####################################################################
@@ -417,12 +417,14 @@ init_root_dir ()
 	log_msg "init Root CA dir: ${DIR}"
 	for d in certs crl newcerts private; do
 		mkdir -p "${DIR}/$d"
+		check_error
 	done
 	chmod 700 "${DIR}/private"
 	touch "${DIR}/index.txt"
 	echo 'unique_subject = no' > "${DIR}/index.txt.attr"
 	echo 1000 > "${DIR}/serial"
 	echo 1000 > "${DIR}/crlnumber"
+	check_error
 }
 
 
@@ -464,9 +466,10 @@ create_root_key ()
 
 	log_msg "create root key: ${keyfile}"
 	if [[ ! -z "${PASSWORD}" ]]; then
+		# XXX doesn't work if password has spaces!
 		pass="-pass ${PASSWORD}"
 	fi
-	openssl genpkey "$pass" \
+	openssl genpkey ${pass} \
 		-algorithm RSA \
 		-aes-256-cbc \
 		-out "${keyfile}" \
@@ -498,7 +501,7 @@ create_root_cert ()
 	if [[ ! -z "${PASSWORD}" ]]; then
 		passin="-passin ${PASSWORD}"
 	fi
-	openssl req "${passin}" \
+	openssl req ${passin} \
 		-config "${config}" \
 		-key "${keyfile}" \
 		-new \
@@ -609,13 +612,13 @@ create_intermediate_key ()
 	if [[ ! -z "${PASSWORD}" ]]; then
 		pass="-pass ${PASSWORD}"
 	fi
-	openssl genpkey "${pass}" \
+	openssl genpkey ${pass} \
 		-algorithm RSA \
 		-aes-256-cbc \
-		-out "$keyfile" \
+		-out "${keyfile}" \
 		-pkeyopt rsa_keygen_bits:4096
 	check_error
-	chmod 400 "$keyfile"
+	chmod 400 "${keyfile}"
 }
 
 ####################################################################
@@ -632,24 +635,24 @@ create_intermediate_key ()
 create_intermediate_csr ()
 {
 	# Use the intermediate key to create a certificate signing request (CSR)
-	local config="$DIR/openssl.cnf"
-	local keyfile="$DIR/private/ca.key.pem"
-	local csrfile="$DIR/csr/ca.csr.pem"
+	local config="${DIR}/openssl.cnf"
+	local keyfile="${DIR}/private/ca.key.pem"
+	local csrfile="${DIR}/csr/ca.csr.pem"
 	get_subj
-	local subj="$RET"
-	local passin=""
+	local subj="${RET}"
+	local passin=
 
-	log_msg "create intermediate csr: $csrfile"
-	if [[ ! -z "$PASSWORD" ]]; then
-		passin="-passin $PASSWORD"
+	log_msg "create intermediate csr: ${csrfile}"
+	if [[ ! -z "${PASSWORD}" ]]; then
+		passin="-passin ${PASSWORD}"
 	fi
-	openssl req "$passin" \
-		-config "$config" \
+	openssl req ${passin} \
+		-config "${config}" \
 		-new \
 		-sha256 \
-		-subj "$subj" \
-		-key "$keyfile" \
-		-out "$csrfile"
+		-subj "${subj}" \
+		-key "${keyfile}" \
+		-out "${csrfile}"
 	check_error
 }
 
@@ -670,13 +673,15 @@ create_intermediate_cert ()
 	local config="${CA_DIR}/openssl.cnf"
 	local csrfile="${DIR}/csr/ca.csr.pem"
 	local certfile="${DIR}/certs/ca.cert.pem"
-	local passin=""
+	local passin=
 
 	log_msg "create intermediate cert: ${certfile}"
 	if [[ ! -z "${PASSWORD}" ]]; then
 		passin="-passin ${PASSWORD}"
 	fi
-	openssl ca "${passin}" \
+	log_msg "config: ${config}"
+	set -x
+	openssl ca ${passin} \
 		-config "${config}" \
 		-extensions v3_intermediate_ca \
 		-days 3650 \
@@ -757,20 +762,6 @@ create_key ()
 # Returns:
 #   None
 ####################################################################
-create_altnames_openssl_cnf_OLD ()
-{
-	local tmpl="openssl.altnames.tmpl"
-	local config="$1"
-	log_msg "create openssl.cnf with [ altnames ] section in ${CA_DIR} folder"
-
-	template_to_file "${tmpl}" "${config}" CA_DIR COMMON_NAME ALT_NAMES
-	check_error
-
-# 	-reqexts "SAN" \
-# 	-config <(cat "${cnffile}" \
-# 		    <(printf "\n[SAN]\nsubjectAltName=DNS:example.com,DNS:*.example.com,DNS:mananno.it,DNS:mananno.com")) \
-}
-
 create_altnames_openssl_cnf ()
 {
 	local tmpl="openssl.altnames.tmpl"
@@ -811,7 +802,7 @@ create_csr ()
 		passin="-passin ${PASSWORD}"
 	fi
 
-	openssl req "${passin}" \
+	openssl req ${passin} \
 		-config "${config}" \
 		-key "${keyfile}" \
 		-new -sha256 \
@@ -843,7 +834,7 @@ create_cert ()
 	if [[ ! -z "${PASSWORD}" ]]; then
 		passin="-passin ${PASSWORD}"
 	fi
-	openssl ca "${passin}" \
+	openssl ca ${passin} \
 		-config "${config}" \
 		-extensions "${cert_type}" \
 		-days 375 \
@@ -869,7 +860,7 @@ create_pkcs ()
 	if [[ ! -z "${PASSWORD}" ]]; then
 		pass="-password ${PASSWORD}"
 	fi
-	openssl pkcs12 "${pass}" -export -clcerts -in "${crtfile}" -inkey "${keyfile}" -out "${p12file}"
+	openssl pkcs12 ${pass} -export -clcerts -in "${crtfile}" -inkey "${keyfile}" -out "${p12file}"
 	check_error
 	chmod 444 "${p12file}"
 }
@@ -946,10 +937,10 @@ check_and_execute()
 			log_msg "Create a new Client Certificate for \"${COMMON_NAME}\" with CA \"${CA_DIR}\""
 			show_distinguished_names "    "
 			check_confirm
-			create_key
-			create_csr
-			create_cert usr
-			verify_cert
+			# create_key
+			# create_csr
+			# create_cert usr
+			# verify_cert
 			create_pkcs
 			;;
 
