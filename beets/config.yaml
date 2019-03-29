@@ -1,0 +1,117 @@
+## beets.io - file di configurazione
+
+directory: ~/Music
+
+# Convert all non-ASCII characters in paths
+# to ASCII equivalents.
+asciify_path: yes
+
+# plugins: discogs fromfilename inline embedart fetchart duplicates bucket
+plugins: rewrite fromfilename inline embedart fetchart bucket
+
+paths:
+    default: %bucket{$artist_key}/$artist_key/$albumartist ($original_year) $album_and_type/$disc_and_track $title
+    singleton: Singletons/$artist/$title
+
+# <specific-album>
+
+
+    album:Tropicália: %bucket{Veloso, Caetano}/Veloso, Caetano/$albumartist ($original_year) $album_and_type/$disc_and_track $artist - $title
+
+    album:Luce dei miei occhi: %bucket{Einaidi, Ludovico}/Einaidi, Ludovico/$albumartist ($original_year) $album_and_type/$disc_and_track $artist - $title
+
+    album:Putumayo Presents: %bucket{Putumayo}/Putumayo/Putumayo Presents ($original_year) %right{$album, -19}/$disc_and_track $artist - $title
+
+    album:A Putumayo Blend: %bucket{Putumayo}/Putumayo/A Putumayo Blend ($original_year) %right{$album, -18}/$disc_and_track $artist - $title
+
+    album:Montecarlo Nights: %bucket{Montecarlo Nights}/Montecarlo Nights/$album/$disc_and_track $artist - $title
+
+# </specific-album>
+
+    comp: Compilations/$album/$disc_and_track $artist - $title
+    albumartist:various: Compilations/$album ($year)/$disc_and_track $artist - $title
+
+    albumtype:soundtrack albumartist:various: Soundtracks/$album ($year)/$disc_and_track $artist - $title
+    genre:children: Children/$album/$disc_and_track $title
+    genre:Classical: $genre/$artist_key/$albumartist ($original_year) $album_and_type/$disc_and_track $title
+    genre:Jazz: $genre/$artist_key/$albumartist ($original_year) $album_and_type/$disc_and_track $title
+
+rewrite:
+    artist Consorzio Suonatori Indipendenti: CSI
+    artist Francesco De Gregori & Giovanna Marini: Francesco De Gregori
+    artist Ivano Fossati & Oscar Prudente: Ivano Fossati
+    albumartist_sort Albarn, Damon*: Albarn, Damon
+    albumartist_sort Baker, Chet*: Baker, Chet
+    albumartist_sort Beethoven, Ludwig van*: Beethoven, Ludwig van
+    albumartist_sort Harper, Ben*: Harper, Ben
+    albumartist_sort Paganini, Niccolò*: Paganini, Niccolò
+    albumartist_sort Shorter, Wayne, Gomez, Eddie, DeJohnette, Jack, Liebman, David, Beirach, Richie: Coltrane, John
+    albumartist_sort Touré, Ali Farka*: Touré, Ali Farka
+
+
+bucket:
+    bucket_alpha: ['A','B','C','D','E','F','G','H',
+                   'I','J','K','L','M','N','O','P','Q',
+                   'R','S','T','U','V','W','X','Y','Z']
+
+#album_fields:
+    #folder: artistfolder if artistfolder != u'' else albumartist
+
+
+item_fields:
+#   multidisc: 1 if disctotal > 1 else 0
+#
+
+    disc_and_track: u'%i-%02i' % (disc, track) if
+                    disctotal > 1 else u'%02i' % (track)
+
+    album_and_type: u'%s [%sbootleg]' % (album, (u'%s-' % (albumtype) if albumtype != u'album' else u'') ) if albumstatus == u'Bootleg' else
+                    u'%s [%s]' % (album,albumtype) if (albumtype != u'album' and albumtype != 'Album' and albumtype != u'') else
+                    u'%s' % (album)
+
+    artist_key: albumartist_sort if albumartist_sort != u'' else
+                albumartist      if albumartist      != u'' else
+                artist
+
+art_filename: folder
+
+match:
+    preferred:
+        countries: ['US', 'GB|UK', 'IT', 'FR']
+        original_year: yes
+
+replace:
+    '[\\/]': _
+    '^\.': _
+    '[\x00-\x1f]': _
+    '[<>:"\?\*\|]': _
+    '\.$': _
+    '\s+$': ''
+    '^\s+':
+
+embedart:
+    auto: yes
+    maxwidth: 500
+
+fecthart:
+    enforce_ratio: 1%
+    maxwidth: 500
+
+web:
+    host: 0.0.0.0
+
+#
+# list options
+#
+format_album:
+    $albumartist ($original_year) $album
+
+sort_album:
+    albumartist+ original_year+ album+
+
+format_item:
+    $artist ($original_year) $album - $track. $title
+
+sort_item:
+    artist+ original_year+ album+ disk+ track+
+
