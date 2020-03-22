@@ -1,7 +1,7 @@
 #!/bin/bash
 
 wget() {
-  command wget -q $*
+  command wget $*
 }
 
 # print a message

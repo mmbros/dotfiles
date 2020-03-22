@@ -55,15 +55,16 @@ for i in "$install_base_dir"/go/bin/*; do
   ln -s "$i" "$install_base_dir"/bin/$(basename "$i");
 done
 
-## 5. update .profile
-
-log "update '~/.profile' file with GOROOT and GOPATH definitions"
-cat >> ~/.profile << EOF
-
+## 5. insert golang.sh in .profile.d
+fn="$HOME/.profile.d/golang.sh"
+if [[ ! -e "$fn" ]]; then
+    log "create '$fn' file with GOROOT and GOPATH definitions"
+    cat >> "$fn" << EOF
 # GOLANG declarations
 export GOROOT="$install_base_dir_string/go"
 export GOPATH="\$HOME/Code/go"
 EOF
+fi
 
 # 6. create folder and symlink to ~/Code/go/src/github.com/mmbro 
 mkdir -p ~/Code/go/src/github.com/mmbros

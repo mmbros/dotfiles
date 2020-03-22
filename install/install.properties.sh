@@ -10,6 +10,6 @@ git_user_name="mmbros"
 git_user_email="server.mmbros@yandex.com"
 
 # GOLANG
-go_pkg_url=https://dl.google.com/go/go1.11.5.linux-amd64.tar.gz
-go_pkg_sha256=ff54aafedff961eb94792487e827515da683d61a5f9482f668008832631e5d25
+go_pkg_url=https://dl.google.com/go/go1.14.1.linux-amd64.tar.gz
+go_pkg_sha256=2f49eb17ce8b48c680cdb166ffd7389702c0dec6effa090c324804a5cac8a7f8
 
