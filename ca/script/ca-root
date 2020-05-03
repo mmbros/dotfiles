@@ -9,6 +9,8 @@ set -e
 # PARAMETERS
 #********************************************
 
+DELETE_DIR=false
+
 # Destination dir of the Root CA
 DIR="$HOME/ca-mmbros/root"
 
@@ -28,12 +30,102 @@ keyfile='private/ca.key.pem'
 certfile='certs/ca.cert.pem'
 
 #********************************************
+# FUNCTIONS
+#********************************************
+
+usage ()
+{
+	cat <<EOS
+Usage: ${0##*/} [ options ]
+
+	Create a Root Certificate Authority
+
+Main options:
+
+	-d, --dir
+		Root CA destination folder (default "$DIR")
+	-D, --delete
+		Delete the already existing Root CA destination folder
+	-s, --subj <text>
+		subject of the certificate (default "$SUBJ")
+
+EOS
+}
+
+
+parse_options ()
+{
+
+# getopt params
+OPTIONS=hDs:d:
+LONGOPTIONS=help,delete,subj:dir:
+
+# -temporarily store output to be able to check for errors
+# -e.g. use “--options” parameter by name to activate quoting/enhanced mode
+# -pass arguments only via   -- "$@"   to separate them correctly
+PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTIONS --name "$0" -- "$@")
+if [[ $? -ne 0 ]]; then
+    # e.g. $? == 1
+    #  then getopt has complained about wrong arguments to stdout
+    exit 2
+fi
+# read getopt’s output this way to handle the quoting right:
+eval set -- "$PARSED"
+# now enjoy the options in order and nicely split until we see --
+while true; do
+    case "$1" in
+        -h|--help)
+			usage
+            exit 0
+            ;;
+        -D|--delete)
+			DELETE_DIR=true
+            shift
+            ;;
+        -s|--subj)
+            SUBJ="$2"
+            shift 2
+            ;;
+        -d|--dir)
+            DIR="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "Programming error"
+            exit 1
+            ;;
+    esac
+done
+# handle non-option arguments
+if [[ $# -ne 0 ]]; then
+    # echo "$0: A single input file is required."
+	echo "$0: Invalid argument(s) -- $@."
+    exit 1
+fi
+
+}
+
+#********************************************
 # COMMANDS
 #********************************************
 
-# delete $DIR folder
-echo "delete $DIR folder"
-rm -rf "${DIR}"
+parse_options "$@"
+
+if [ -d "${DIR}" ]; then
+	if [ "$DELETE_DIR" = true ]; then
+		# delete $DIR folder
+		echo "delete $DIR folder"
+		rm -rf "${DIR}"
+	else
+		echo "Error: folder \"${DIR}\" already exists. Use -D option to delete CA root folder."
+		exit 1
+	fi
+fi
+
 
 # create and cd dir
 echo "create and cd ${DIR}"
